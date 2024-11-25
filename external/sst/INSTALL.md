@@ -1,6 +1,6 @@
 # Install SST
 
-## dependencies
+## Dependencies
 Install dependencies
 ```bash
 sudo apt install openmpi-bin openmpi-common libtool libtool-bin autoconf python3 python3-dev automake build-essential git
