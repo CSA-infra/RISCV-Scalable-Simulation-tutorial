@@ -6,7 +6,7 @@
 	path = external/sst/sst-core
 	url = https://github.com/sstsimulator/sst-core.git
 	branch = v14.1.0_Final
-[submodule "external/sst/riscv-gnu-toolchain"]
-	path = external/sst/riscv-gnu-toolchain
+[submodule "external/riscv-gnu-toolchain"]
+	path = external/riscv-gnu-toolchain
 	url = https://github.com/riscv-collab/riscv-gnu-toolchain.git
    branch = 2024.11.22
