@@ -1,6 +1,5 @@
-mha
-mpi_mha
+x86
+riscv64
 test_gemm.c
 test_gemm_t.c
 test_softmax.c
-test_tp
