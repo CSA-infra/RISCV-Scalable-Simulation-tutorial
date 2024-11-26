@@ -15,41 +15,105 @@
 
 #define CHECK_RES
 
-typedef enum {FP8, FP16, FP32, FP64} data_type_e;
+
+//FP32
+//#define DATATYPE 0
+//FP64
+//#define DATATYPE 1
+//I8
+//#define DATATYPE 2
+//I16
+//#define DATATYPE 3
+//I32
+#define DATATYPE 4
+
+typedef enum {FP32, FP64, I8, I16, I32} data_type_e;
+
+
+#if DATATYPE == 0
+typedef float data_t;
+MPI_Datatype mpi_data_type = MPI_FLOAT;
+static data_type_e data_type = FP32;
+#define TYPE_IS_FP
+#elif DATATYPE == 1
+typedef double data_t;
+MPI_Datatype mpi_data_type = MPI_DOUBLE;
+static data_type_e data_type = FP64;
+#define TYPE_IS_FP
+#elif DATATYPE == 2
+typedef int8_t data_t;
+MPI_Datatype mpi_data_type = MPI_INT8_T;
+static data_type_e data_type = I8;
+#define TYPE_IS_INT
+#elif DATATYPE == 3
+typedef int16_t data_t;
+MPI_Datatype mpi_data_type = MPI_INT16_T;
+static data_type_e data_type = I16;
+#define TYPE_IS_INT
+#elif DATATYPE == 4
+typedef int32_t data_t;
+MPI_Datatype mpi_data_type = MPI_INT32_T;
+static data_type_e data_type = I32;
+#define TYPE_IS_INT
+#else
+   #error Unsupported choice setting
+#endif
 
 void init_random_tensor(void * tensor, data_type_e data_type, size_t nmemb);
 
-void gemm(void * dst, void * src1, void * src2, data_type_e data_type, int m, int n, int k);
+void gemm(void * dst, void * src1, void * src2, data_type_e data_type, int m, int n, int k,
+          int stride_0, int stride_1, int stride_2);
 
-void gemm_t(void * dst, void * src1, void * src2, data_type_e data_type, int m, int n, int k);
+void gemm_t(void * dst, void * src1, void * src2, data_type_e data_type, int m, int n, int k,
+          int stride_0, int stride_1, int stride_2);
 
 void scale(void * dst, void * src1, void * src2, data_type_e data_type, int m, int n);
+
+void add(void * dst, void * src1, void * src2, data_type_e data_type, int m, int n);
 
 void softmax(void * dst, void * src, data_type_e data_type, int m, int n);
 
 #ifdef CHECK_RES
 
-void gemm_ref(void * dst, void * src1, void * src2, data_type_e data_type, int m, int n, int k);
+void gemm_ref(void * dst, void * src1, void * src2, data_type_e data_type, int m, int n, int k,
+          int stride_0, int stride_1, int stride_2);
 
-void gemm_t_ref(void * dst, void * src1, void * src2, data_type_e data_type, int m, int n, int k);
+void gemm_t_ref(void * dst, void * src1, void * src2, data_type_e data_type, int m, int n, int k,
+          int stride_0, int stride_1, int stride_2);
 
 void scale_ref(void * dst, void * src1, void * src2, data_type_e data_type, int m, int n);
 
+void add_ref(void * dst, void * src1, void * src2, data_type_e data_type, int m, int n);
+
 void softmax_ref(void * dst, void * src, data_type_e data_type, int m, int n);
 
-static int cmpf(float rhs, float lhs) {
+#if defined(TYPE_IS_INT)
+static int cmp(data_t rhs, data_t lhs) {
+   return (rhs) - (lhs);
+}
+static void print_diff(int count, int pos, data_t ref, data_t res) {
+   printf("Difference %d at %d ref = %d mpi = %d\n", count, pos, ref, res);
+}
+#elif defined(TYPE_IS_FP)
+static int cmp(data_t rhs, data_t lhs) {
    int ret = 0;
-   float diff = roundf(rhs) - roundf(lhs);
+   data_t diff = roundf(rhs) - roundf(lhs);
    ret = diff > 1.0 ? 1 : 0;
    return ret;
 }
-
+static void print_diff(int count, int pos, data_t ref, data_t res) {
+   printf("Difference %d at %d ref = %.4f mpi = %.4f\n", count, pos, ref, res);
+}
+#else
+   #error Unsupported choice setting
 #endif
+
+#endif // CHECK_RES
 
 int main(int argc, char ** argv) {
    const int root = 0;
    int n_ranks, rank;
-   MPI_Request emb_req, Qw_req, Kw_req, Vw_req, *Q_req, K_req, V_req, QKV_req;
+   MPI_Request emb_req, Qw_req, Kw_req, Vw_req, attn_w_req;
 
    MPI_Init(&argc, &argv);
    MPI_Comm_size(WORLD, &n_ranks);
@@ -69,7 +133,6 @@ int main(int argc, char ** argv) {
    int S = atoi(argv[2]);
    int dk = dmodel/h;
    int dv = dmodel/h;
-   data_type_e data_type = FP32;
 
    if((dmodel%n_ranks) != 0) {
       fprintf(stderr, "Error: dmodel must be a multiple of the number of ranks (dmodel: %d, rank: %d)\n", dmodel, rank);
@@ -79,100 +142,106 @@ int main(int argc, char ** argv) {
    fprintf(stdout, "Model n_ranks: %d, Sequence lenght: %d, head count: %d\n", dmodel, S, h);
 
 
-   MPI_Type_vector(dmodel, dmodel/n_ranks, dmodel, MPI_FLOAT, &col);
+   MPI_Type_vector(dmodel, dmodel/n_ranks, dmodel, mpi_data_type, &col);
    MPI_Type_commit(&col);
-   MPI_Type_create_resized(col, 0, dmodel/n_ranks*sizeof(float), &col_type);
+   MPI_Type_create_resized(col, 0, dmodel/n_ranks*sizeof(data_t), &col_type);
    MPI_Type_commit(&col_type);
 
 
-   Q_req = calloc(n_ranks, sizeof(MPI_Request));
+   assert(n_ranks <= h && (h % n_ranks) == 0);
 
-   float * embeddings = NULL;
-   float * Qw = NULL;
-   float * Kw = NULL;
-   float * Vw = NULL;
+#ifdef CHECK_RES
+   data_t * embeddings_ref = NULL;
+#endif
 
-   float * Qw_col = NULL;
-   float * Kw_col = NULL;
-   float * Vw_col = NULL;
+   data_t *embeddings = NULL;
+   data_t * Qw = NULL;
+   data_t * Kw = NULL;
+   data_t * Vw = NULL;
 
-   float * Q_col = NULL;
-   float * Q_row = NULL;
+   data_t * Qw_heads = NULL;
+   data_t * Kw_heads = NULL;
+   data_t * Vw_heads = NULL;
 
-   float * K_col = NULL;
-   float * K_full = NULL;
+   data_t * Q = NULL;
+   data_t * K = NULL;
+   data_t * V = NULL;
 
-   float * V_col = NULL;
-   float * V_full = NULL;
+   data_t * KQ = NULL;
+   data_t * softmax_out = NULL;
 
-   float * KQ = NULL;
-   float * softmax_out = NULL;
+   data_t * QKV = NULL;
 
-   float * QKV_row = NULL;
-   float * QKV_full = NULL;
+   data_t * ATTNw = NULL;
+   data_t * ATTNout = NULL;
 
-   float scale_f = 1.0f/sqrtf(((float)dk));
+   data_t scale_f = 1.0f/sqrtf(((data_t)dk));
 
    srand(time(NULL));
 
    clock_gettime(CLOCK_MONOTONIC, &start);
 
-   embeddings = calloc(dmodel*S, sizeof(float));
+   embeddings = calloc(dmodel*S, sizeof(data_t));
+
+   ATTNw = calloc(dmodel*dmodel, sizeof(data_t));
 
    if(rank == root) {
-      init_random_tensor(embeddings, FP32, dmodel*S);
+      init_random_tensor(embeddings, data_type, dmodel*S);
+      init_random_tensor(ATTNw, data_type, dmodel*dmodel);
+#ifdef CHECK_RES
+      embeddings_ref = calloc(S*dmodel,sizeof(data_t));
+      memcpy(embeddings_ref, embeddings, S*dmodel*sizeof(data_t));
+#endif
    }
 
-   MPI_Ibcast(embeddings, dmodel*S, MPI_FLOAT, root, WORLD, &emb_req);
+   MPI_Ibcast(embeddings, dmodel*S, mpi_data_type, root, WORLD, &emb_req);
+   MPI_Ibcast(ATTNw, dmodel*dmodel, mpi_data_type, root, WORLD, &attn_w_req);
 
    if(rank == root) {
-      Qw = calloc(dmodel*dmodel, sizeof(float));
-      init_random_tensor(Qw, FP32, dmodel*dmodel);
+      Qw = calloc(dmodel*dmodel, sizeof(data_t));
+      init_random_tensor(Qw, data_type, dmodel*dmodel);
 
-      Kw = calloc(dmodel*dmodel, sizeof(float));
-      init_random_tensor(Kw, FP32, dmodel*dmodel);
+      Kw = calloc(dmodel*dmodel, sizeof(data_t));
+      init_random_tensor(Kw, data_type, dmodel*dmodel);
 
-      Vw = calloc(dmodel*dmodel, sizeof(float));
-      init_random_tensor(Vw, FP32, dmodel*dmodel);
-
-      QKV_full = calloc(S*dmodel, sizeof(float));
+      Vw = calloc(dmodel*dmodel, sizeof(data_t));
+      init_random_tensor(Vw, data_type, dmodel*dmodel);
    }
 
-   Qw_col = calloc(dmodel*dmodel/n_ranks, sizeof(float));
-   memset(Qw_col, 0, dmodel*dmodel/n_ranks*sizeof(float));
-   Kw_col = calloc(dmodel*dmodel/n_ranks, sizeof(float));
-   Vw_col = calloc(dmodel*dmodel/n_ranks, sizeof(float));
+   Qw_heads = calloc(dmodel*dmodel/n_ranks, sizeof(data_t));
+   Kw_heads = calloc(dmodel*dmodel/n_ranks, sizeof(data_t));
+   Vw_heads = calloc(dmodel*dmodel/n_ranks, sizeof(data_t));
 
-   MPI_Iscatter(Qw, 1, col_type, Qw_col, dmodel*dmodel/n_ranks, MPI_FLOAT, root, WORLD, &Qw_req);
-   MPI_Iscatter(Kw, 1, col_type, Kw_col, dmodel*dmodel/n_ranks, MPI_FLOAT, root, WORLD, &Kw_req);
-   MPI_Iscatter(Vw, 1, col_type, Vw_col, dmodel*dmodel/n_ranks, MPI_FLOAT, root, WORLD, &Vw_req);
+   MPI_Iscatter(Qw, 1, col_type, Qw_heads, dmodel*dmodel/n_ranks, mpi_data_type, root, WORLD, &Qw_req);
+   MPI_Iscatter(Kw, 1, col_type, Kw_heads, dmodel*dmodel/n_ranks, mpi_data_type, root, WORLD, &Kw_req);
+   MPI_Iscatter(Vw, 1, col_type, Vw_heads, dmodel*dmodel/n_ranks, mpi_data_type, root, WORLD, &Vw_req);
 
-   Q_col = calloc(S*dmodel/n_ranks, sizeof(float));
-   memset(Q_col, 0, S*dmodel*sizeof(float)/n_ranks);
-   Q_row = calloc(S*dmodel/n_ranks, sizeof(float));
+   Q = calloc(S*dmodel/n_ranks, sizeof(data_t));
+   memset(Q, 0, S*dmodel*sizeof(data_t)/n_ranks);
 
-   K_col = calloc(S*dmodel/n_ranks, sizeof(float));
-   memset(K_col, 0, S*dmodel*sizeof(float)/n_ranks);
-   K_full = calloc(S*dmodel, sizeof(float));
+   K = calloc(S*dmodel/n_ranks, sizeof(data_t));
+   memset(K, 0, S*dmodel*sizeof(data_t)/n_ranks);
 
-   V_col = calloc(S*dmodel/n_ranks, sizeof(float));
-   memset(V_col, 0, S*dmodel*sizeof(float)/n_ranks);
-   V_full = calloc(S*dmodel, sizeof(float));
-   assert(V_full);
+   V = calloc(S*dmodel/n_ranks, sizeof(data_t));
+   memset(V, 0, S*dmodel*sizeof(data_t)/n_ranks);
 
-   KQ = calloc(S/n_ranks*S, sizeof(float));
-   memset(KQ, 0, S/n_ranks*S*sizeof(float));
+   KQ = calloc(h/n_ranks*S*S, sizeof(data_t));
+   memset(KQ, 0, h/n_ranks*S*S*sizeof(data_t));
 
-   softmax_out = calloc(S/n_ranks*S, sizeof(float));
-   memset(softmax_out, 0, S/n_ranks*S*sizeof(float));
+   softmax_out = calloc(h/n_ranks*S*S, sizeof(data_t));
+   memset(softmax_out, 0, h/n_ranks*S*S*sizeof(data_t));
 
-   QKV_row = calloc(S/n_ranks*dmodel, sizeof(float));
-   memset(QKV_row, 0, S/n_ranks*dmodel*sizeof(float));
+   QKV = calloc(S/n_ranks*dmodel, sizeof(data_t));
+   memset(QKV, 0, S/n_ranks*dmodel*sizeof(data_t));
+
+   ATTNout = calloc(S*dmodel, sizeof(data_t));
+   memset(ATTNout, 0, S*dmodel*sizeof(data_t));
 
    MPI_Wait(&emb_req, MPI_STATUS_IGNORE);
    MPI_Wait(&Qw_req, MPI_STATUS_IGNORE);
    MPI_Wait(&Kw_req, MPI_STATUS_IGNORE);
    MPI_Wait(&Vw_req, MPI_STATUS_IGNORE);
+   MPI_Wait(&attn_w_req, MPI_STATUS_IGNORE);
 
    clock_gettime(CLOCK_MONOTONIC, &end);
 
@@ -182,36 +251,28 @@ int main(int argc, char ** argv) {
    clock_gettime(CLOCK_MONOTONIC, &start);
    /* MHA */
 
-   gemm(Q_col, embeddings, Qw_col, FP32, S, dmodel/n_ranks, dmodel);
+   gemm(Q, embeddings, Qw_heads, data_type, S, dmodel/n_ranks, dmodel, dmodel/n_ranks, dmodel, dmodel/n_ranks);
+   gemm(K, embeddings, Kw_heads, data_type, S, dmodel/n_ranks, dmodel, dmodel/n_ranks, dmodel, dmodel/n_ranks);
+   gemm(V, embeddings, Vw_heads, data_type, S, dmodel/n_ranks, dmodel, dmodel/n_ranks, dmodel, dmodel/n_ranks);
 
-   for(int r = 0; r < n_ranks; r++) {
-      const int bsize = S/n_ranks*dmodel/n_ranks;
-      MPI_Iscatter(Q_col, bsize, MPI_FLOAT, &Q_row[bsize*r], bsize, MPI_FLOAT, r, WORLD, &Q_req[r]);
+   for(int i = 0; i < h/n_ranks; i++) {
+      gemm_t(&KQ[S*S*i], &Q[dmodel/h*i], K, data_type, S, S, dmodel/h, S, dmodel/n_ranks, dmodel/n_ranks);
    }
 
-   gemm(K_col, embeddings, Kw_col, FP32, S, dmodel/n_ranks, dmodel);
+   scale(KQ, KQ, ((void*)&scale_f), data_type, h/n_ranks*S, S);
 
-   MPI_Iallgather(K_col, S*dmodel/n_ranks, MPI_FLOAT, K_full, 1, col_type, WORLD, &K_req );
+   softmax(softmax_out, KQ, data_type, h/n_ranks*S, S);
 
-   gemm(V_col, embeddings, Vw_col, FP32, S, dmodel/n_ranks, dmodel);
+   for(int i = 0; i < h/n_ranks; i++) {
+      gemm(&QKV[dmodel/h*i], &softmax_out[S*S*i], &V[dmodel/h*i], data_type, S, dmodel/h, S, dmodel/n_ranks, S, dmodel/n_ranks);
+   }
 
-   MPI_Iallgather(V_col, S*dmodel/n_ranks, MPI_FLOAT, V_full, 1, col_type, WORLD, &V_req );
+   gemm(ATTNout, QKV, ATTNw, data_type, S, dmodel, dmodel/n_ranks, dmodel, dmodel/n_ranks, dmodel);
 
-   for(int r = 0; r < n_ranks; r++)
-      MPI_Wait(&Q_req[r], MPI_STATUS_IGNORE);
-   MPI_Wait(&K_req, MPI_STATUS_IGNORE);
+   add(&ATTNout[S/n_ranks*rank*dmodel], &ATTNout[S/n_ranks*rank*dmodel], &embeddings[S/n_ranks*rank*dmodel], data_type, S/n_ranks, dmodel);
 
-   gemm_t(KQ, Q_row, K_full, FP32, S/n_ranks, S, dmodel);
 
-   scale(KQ, KQ, ((void*)&scale_f), FP32, S/n_ranks, S);
-
-   softmax(softmax_out, KQ, FP32, S/n_ranks, S);
-
-   MPI_Wait(&V_req, MPI_STATUS_IGNORE);
-
-   gemm(QKV_row, softmax_out, V_full, FP32, S/n_ranks, dmodel, S);
-
-   MPI_Gather(QKV_row, S/n_ranks*dmodel, MPI_FLOAT, QKV_full, S/n_ranks*dmodel, MPI_FLOAT, root, WORLD);
+   MPI_Allreduce(ATTNout, embeddings, S*dmodel, mpi_data_type, MPI_SUM, WORLD);
 
    clock_gettime(CLOCK_MONOTONIC, &end);
 
@@ -220,47 +281,58 @@ int main(int argc, char ** argv) {
 
 #ifdef CHECK_RES
    if(rank == root) {
-      float * QKV_ref = calloc(S*dmodel, sizeof(float));
-      assert(QKV_ref);
-      memset(QKV_ref, 0, S*dmodel*sizeof(float));
-
-      float * Q_ref = calloc(S*dmodel, sizeof(float));
+      data_t * Q_ref = calloc(S*dmodel, sizeof(data_t));
       assert(Q_ref);
-      memset(Q_ref, 0, S*dmodel*sizeof(float));
+      memset(Q_ref, 0, S*dmodel*sizeof(data_t));
 
-      float * K_ref = calloc(S*dmodel, sizeof(float));
+      data_t * K_ref = calloc(S*dmodel, sizeof(data_t));
       assert(K_ref);
-      memset(K_ref, 0, S*dmodel*sizeof(float));
+      memset(K_ref, 0, S*dmodel*sizeof(data_t));
 
-      float * V_ref = calloc(S*dmodel, sizeof(float));
+      data_t * V_ref = calloc(S*dmodel, sizeof(data_t));
       assert(V_ref);
-      memset(V_ref, 0, S*dmodel*sizeof(float));
+      memset(V_ref, 0, S*dmodel*sizeof(data_t));
 
-      float * KQ_ref = calloc(S*S, sizeof(float));
+      data_t * KQ_ref = calloc(S*S*h, sizeof(data_t));
       assert(KQ_ref);
-      memset(KQ_ref, 0, S*S*sizeof(float));
+      memset(KQ_ref, 0, h*S*S*sizeof(data_t));
 
-      float * softmax_out_ref = calloc(S*S, sizeof(float));
+      data_t * softmax_out_ref = calloc(h*S*S, sizeof(data_t));
       assert(softmax_out_ref);
-      memset(softmax_out_ref, 0, S*S*sizeof(float));
+      memset(softmax_out_ref, 0, h*S*S*sizeof(data_t));
 
-      gemm_ref(Q_ref, embeddings, Qw, FP32, S, dmodel, dmodel);
-      gemm_ref(K_ref, embeddings, Kw, FP32, S, dmodel, dmodel);
-      gemm_ref(V_ref, embeddings, Vw, FP32, S, dmodel, dmodel);
+      data_t * QKV_ref = calloc(S*dmodel, sizeof(data_t));
+      assert(QKV_ref);
+      memset(QKV_ref, 0, S*dmodel*sizeof(data_t));
 
-      gemm_t_ref(KQ_ref, Q_ref, K_ref, FP32, S, dmodel, S);
+      data_t * ATTNout_ref = calloc(S*dmodel, sizeof(data_t));
+      assert(ATTNout_ref);
+      memset(ATTNout_ref, 0, S*dmodel*sizeof(data_t));
 
-      scale_ref(KQ_ref, KQ_ref, ((void*)&scale_f), FP32, S, S);
+      gemm_ref(Q_ref, embeddings_ref, Qw, data_type, S, dmodel, dmodel, dmodel, dmodel, dmodel);
+      gemm_ref(K_ref, embeddings_ref, Kw, data_type, S, dmodel, dmodel, dmodel, dmodel, dmodel);
+      gemm_ref(V_ref, embeddings_ref, Vw, data_type, S, dmodel, dmodel, dmodel, dmodel, dmodel);
 
-      softmax_ref(softmax_out_ref, KQ_ref, FP32, S, S);
+      for(int i = 0; i < h; i++) {
+         gemm_t_ref(&KQ_ref[S*S*i], &Q_ref[dmodel/h*i], K_ref, data_type, S, S, dmodel/h, S, dmodel, dmodel);
+      }
 
-      gemm_ref(QKV_ref, softmax_out_ref, V_ref, FP32, S, dmodel, S);
+      scale_ref(KQ_ref, KQ_ref, ((void*)&scale_f), data_type, S*h, S);
 
-      int cmp = 0;
-      for(int i = 0; i < S; i++)
-         for(int j = 0; j < dmodel; j++)
-            if(cmpf(QKV_ref[i*S+j], QKV_full[i*S+j]) != 0)
-               printf("Difference %d at %d ref = %.4f mpi = %.4f\n", cmp++, i*S+j, QKV_ref[i*S+j], QKV_full[i*S+j]);
+      softmax_ref(softmax_out_ref, KQ_ref, data_type, S*h, S);
+
+      for(int i = 0; i < h; i++) {
+         gemm_ref(&QKV_ref[dmodel/h*i], &softmax_out_ref[S*S*i], &V_ref[dmodel/h*i], data_type, S, dmodel/h, S, dmodel, S, dmodel);
+      }
+
+      gemm_ref(ATTNout_ref, QKV_ref, ATTNw, data_type, S, dmodel, dmodel, dmodel, dmodel, dmodel);
+
+      add_ref(embeddings_ref, embeddings_ref, ATTNout_ref, data_type, S, dmodel);
+
+      int count = 0;
+      for(int i = 0; i < S*dmodel; i++)
+         if(cmp(embeddings_ref[i], embeddings[i]) != 0)
+               print_diff(count++, i, embeddings_ref[i], embeddings[i]);
 
       free(Q_ref);
       free(K_ref);
@@ -268,6 +340,8 @@ int main(int argc, char ** argv) {
       free(KQ_ref);
       free(softmax_out_ref);
       free(QKV_ref);
+      free(embeddings_ref);
+      free(ATTNout_ref);
    }
 #endif
 
@@ -275,25 +349,20 @@ int main(int argc, char ** argv) {
       free(Qw);
       free(Kw);
       free(Vw);
-      free(QKV_full);
-
    }
 
-   free(Q_req);
-
    free(embeddings);
-   free(Qw_col);
-   free(Kw_col);
-   free(Vw_col);
-   free(Q_col);
-   free(Q_row);
-   free(K_col);
-   free(K_full);
-   free(V_col);
-   free(V_full);
+   free(Qw_heads);
+   free(Kw_heads);
+   free(Vw_heads);
+   free(Q);
+   free(K);
+   free(V);
    free(KQ);
    free(softmax_out);
-   free(QKV_row);
+   free(QKV);
+   free(ATTNw);
+   free(ATTNout);
 
    MPI_Finalize();
    return 0;
@@ -302,12 +371,13 @@ int main(int argc, char ** argv) {
 static size_t get_element_size(data_type_e type) {
    size_t size;
    switch (type) {
-      case FP8:
+      case I8:
          size = sizeof(uint8_t);
          break;
-      case FP16:
+      case I16:
          size = sizeof(uint16_t);
          break;
+      case I32:
       case FP32:
          size = sizeof(uint32_t);
          break;
@@ -325,29 +395,23 @@ static size_t get_element_size(data_type_e type) {
 }
 
 
-static void init_random_tensor_fp32(float * tensor, size_t nmemb) {
+static void init_random_tensor_impl(data_t * tensor, size_t nmemb) {
+   const data_t range = 10;
    #pragma omp parallel for shared (tensor)
    for(int i = 0; i < nmemb; i++)
-      tensor[i] = ((float)rand()/(float)(RAND_MAX)) * 10.0;
+      tensor[i] = ((data_t)rand()/(data_t)(RAND_MAX)) * range;
 }
 
 void init_random_tensor(void * tensor, data_type_e data_type, size_t nmemb) {
    assert(tensor);
-   switch(data_type) {
-      case FP32:
-         init_random_tensor_fp32(((float*)tensor), nmemb);
-         break;
-      default:
-         fprintf(stderr, "[%s:%d] Data type not supported\n", __func__, __LINE__);
-         break;
-   }
+   init_random_tensor_impl(((data_t*)tensor), nmemb);
 }
 
-static void gemm_fp32(float * dst, const float * src1, const float * src2, int m, int n, int k) {
+static void gemm_impl(data_t * dst, const data_t * src1, const data_t * src2, int m, int n, int k, int stride_0, int stride_1, int stride_2) {
    const int bsize = 64;
    int ii0, ii1, ii2;
    int i0, i1, i2;
-   float pp;
+   data_t pp;
    #pragma omp parallel for shared (dst, src1, src2) private(i0,i1,i2,ii0,ii1,ii2,pp) collapse(3)
    for (ii0 = 0; ii0<m; ii0+=bsize) {
       for (ii1 = 0; ii1<n; ii1+=bsize) {
@@ -356,9 +420,9 @@ static void gemm_fp32(float * dst, const float * src1, const float * src2, int m
                for (i1 = ii1; i1 < MIN(ii1+bsize,n); i1++) {
                   pp = 0;
                   for (i2 = ii2; i2 < MIN(ii2+bsize,k); i2++) {
-                     pp += src1[i0*k+i2] * src2[i2*n+i1];
+                     pp += src1[i0*(stride_1)+i2] * src2[i2*stride_2+i1];
                   }
-                  dst[i0*n+i1]+= pp;
+                  dst[i0*(stride_0)+i1]+= pp;
                }
             }
          }
@@ -366,11 +430,11 @@ static void gemm_fp32(float * dst, const float * src1, const float * src2, int m
    }
 }
 
-static void gemm_t_fp32(float * dst, const float * src1, const float * src2, int m, int n, int k) {
+static void gemm_t_impl(data_t * dst, const data_t * src1, const data_t * src2, int m, int n, int k, int stride_0, int stride_1, int stride_2) {
    const int bsize = 64;
    int ii0, ii1, ii2;
    int i0, i1, i2;
-   float pp;
+   data_t pp;
    #pragma omp parallel for shared (dst, src1, src2) private(i0,i1,i2,ii0,ii1,ii2,pp) collapse(3)
    for (ii0 = 0; ii0<m; ii0+=bsize) {
       for (ii1 = 0; ii1<n; ii1+=bsize) {
@@ -379,9 +443,9 @@ static void gemm_t_fp32(float * dst, const float * src1, const float * src2, int
                for (i1 = ii1; i1 < MIN(ii1+bsize,n); i1++) {
                   pp = 0;
                   for (i2 = ii2; i2 < MIN(ii2+bsize,k); i2++) {
-                     pp += src1[i0*k+i2] * src2[i1*k+i2];
+                     pp += src1[i0*(stride_1)+i2] * src2[i1*stride_2+i2];
                   }
-                  dst[i0*n+i1]+= pp;
+                  dst[i0*stride_0+i1]+= pp;
                }
             }
          }
@@ -389,16 +453,23 @@ static void gemm_t_fp32(float * dst, const float * src1, const float * src2, int
    }
 }
 
-static void scale_fp32(float * dst, const float * src1, const float src2, int m, int n) {
-   int i, j;
+static void scale_impl(data_t * dst, const data_t * src1, const data_t src2, int m, int n) {
+   int i;
    #pragma omp parallel for shared (dst, src1) private(i)
    for(i = 0; i < m*n; i++)
       dst[i] = src1[i] * src2;
 }
 
-static void softmax_fp32(float * dst, const float * src, int m, int n) {
+static void add_impl(data_t * dst, const data_t * src1, const data_t * src2, int m, int n) {
+   int i;
+   #pragma omp parallel for shared (dst, src1) private(i)
+   for(i = 0; i < m*n; i++)
+      dst[i] = src1[i] + src2[i];
+}
+
+static void softmax_impl(data_t * dst, const data_t * src, int m, int n) {
    int i, j;
-   float max, sum;
+   data_t max, sum;
    #pragma omp parallel for shared (dst) private(i, j, max, sum)
    for(i = 0; i < m; i++) {
       max = FLT_MIN;
@@ -407,7 +478,7 @@ static void softmax_fp32(float * dst, const float * src, int m, int n) {
 
       sum = 0.0;
       for(j = 0; j < n; j++) {
-         const float e = expf(src[i*n+j] - max);
+         const data_t e = expf(src[i*n+j] - max);
          sum += e;
          dst[i*n+j] = e;
       }
@@ -419,94 +490,80 @@ static void softmax_fp32(float * dst, const float * src, int m, int n) {
 }
 
 
-void gemm(void * dst, void * src1, void * src2, data_type_e data_type, int m, int n, int k) {
+void gemm(void * dst, void * src1, void * src2, data_type_e data_type, int m, int n, int k, int stride_0, int stride_1, int stride_2) {
    assert(dst);
    assert(src1);
    assert(src2);
-   switch(data_type) {
-      case FP32:
-         gemm_fp32(((float*)dst), ((float*)src1), ((float*)src2), m, n, k);
-         break;
-      default:
-         fprintf(stderr, "[%s:%d] Data type not supported\n", __func__, __LINE__);
-         break;
-   }
+   gemm_impl(((data_t*)dst), ((data_t*)src1), ((data_t*)src2), m, n, k, stride_0, stride_1, stride_2);
 }
 
-void gemm_t(void * dst, void * src1, void * src2, data_type_e data_type, int m, int n, int k) {
+void gemm_t(void * dst, void * src1, void * src2, data_type_e data_type, int m, int n, int k, int stride_0, int stride_1, int stride_2) {
    assert(dst);
    assert(src1);
    assert(src2);
-   switch(data_type) {
-      case FP32:
-         gemm_t_fp32(((float*)dst), ((float*)src1), ((float*)src2), m, n, k);
-         break;
-      default:
-         fprintf(stderr, "[%s:%d] Data type not supported\n", __func__, __LINE__);
-         break;
-   }
+   gemm_t_impl(((data_t*)dst), ((data_t*)src1), ((data_t*)src2), m, n, k, stride_0, stride_1, stride_2);
 }
 
 void scale(void * dst, void * src1, void * src2, data_type_e data_type, int m, int n) {
    assert(dst);
    assert(src1);
    assert(src2);
-   switch(data_type) {
-      case FP32:
-         scale_fp32(((float*)dst), ((float*)src1), *((float*)src2), m, n);
-         break;
-      default:
-         fprintf(stderr, "[%s:%d] Data type not supported\n", __func__, __LINE__);
-         break;
-   }
+   scale_impl(((data_t*)dst), ((data_t*)src1), *((data_t*)src2), m, n);
 }
+
+void add(void * dst, void * src1, void * src2, data_type_e data_type, int m, int n) {
+   assert(dst);
+   assert(src1);
+   assert(src2);
+   add_impl(((data_t*)dst), ((data_t*)src1), ((data_t*)src2), m, n);
+}
+
 
 void softmax(void * dst, void * src, data_type_e data_type, int m, int n) {
    assert(dst);
    assert(src);
-   switch(data_type) {
-      case FP32:
-         softmax_fp32(((float*)dst), ((float*)src), m, n);
-         break;
-      default:
-         fprintf(stderr, "[%s:%d] Data type not supported\n", __func__, __LINE__);
-         break;
-   }
+   softmax_impl(((data_t*)dst), ((data_t*)src), m, n);
 }
 
 #ifdef CHECK_RES
 
-static void gemm_fp32_ref(float * dst, const float * src1, const float * src2, int m, int n, int k) {
+static void gemm_ref_impl(data_t * dst, const data_t * src1, const data_t * src2, int m, int n, int k, int stride_0, int stride_1, int stride_2) {
    int i0 = 0, i1 = 0, i2 = 0;
    for (i0 = 0; i0 < m; ++i0) {
       for (i1 = 0; i1 < n; ++i1) {
          for (i2 = 0; i2 < k; ++i2) {
-            dst[i0*n+i1] += src1[i0*k+i2] * src2[i2*n+i1];
+            dst[i0*(stride_0)+i1] += src1[i0*(stride_1)+i2] * src2[i2*stride_2+i1];
          }
       }
    }
 }
 
-static void gemm_t_fp32_ref(float * dst, const float * src1, const float * src2, int m, int n, int k) {
+static void gemm_t_ref_impl(data_t * dst, const data_t * src1, const data_t * src2, int m, int n, int k, int stride_0, int stride_1, int stride_2) {
    int i0 = 0, i1 = 0, i2 = 0;
    for (i0 = 0; i0 < m; ++i0) {
       for (i1 = 0; i1 < n; ++i1) {
          for (i2 = 0; i2 < k; ++i2) {
-            dst[i0*n+i1] += src1[i0*k+i2] * src2[i1*k+i2];
+            dst[i0*stride_0+i1] += src1[i0*(stride_1)+i2] * src2[i1*stride_2+i2];
          }
       }
    }
 }
 
-static void scale_fp32_ref(float * dst, const float * src1, const float src2, int m, int n) {
+static void scale_ref_impl(data_t * dst, const data_t * src1, const data_t src2, int m, int n) {
    int i, j;
    for(i = 0; i < m*n; i++)
       dst[i] = src1[i] * src2;
 }
 
-static void softmax_fp32_ref(float * dst, const float * src, int m, int n) {
+static void add_ref_impl(data_t * dst, const data_t * src1, const data_t * src2, int m, int n) {
    int i, j;
-   float max, sum;
+   for(i = 0; i < m*n; i++)
+      dst[i] = src1[i] + src2[i];
+}
+
+static void softmax_ref_impl(data_t * dst, const data_t * src, int m, int n) {
+   int i, j;
+   data_t max, sum;
    for(i = 0; i < m; i++) {
       max = FLT_MIN;
       for(j = 0; j < n; j++)
@@ -514,7 +571,7 @@ static void softmax_fp32_ref(float * dst, const float * src, int m, int n) {
 
       sum = 0.0;
       for(j = 0; j < n; j++) {
-         const float e = expf(src[i*n+j] - max);
+         const data_t e = expf(src[i*n+j] - max);
          sum += e;
          dst[i*n+j] = e;
       }
@@ -526,59 +583,39 @@ static void softmax_fp32_ref(float * dst, const float * src, int m, int n) {
 }
 
 
-void gemm_ref(void * dst, void * src1, void * src2, data_type_e data_type, int m, int n, int k) {
+void gemm_ref(void * dst, void * src1, void * src2, data_type_e data_type, int m, int n, int k, int stride_0, int stride_1, int stride_2) {
    assert(dst);
    assert(src1);
    assert(src2);
-   switch(data_type) {
-      case FP32:
-         gemm_fp32_ref(((float*)dst), ((float*)src1), ((float*)src2), m, n, k);
-         break;
-      default:
-         fprintf(stderr, "[%s:%d] Data type not supported\n", __func__, __LINE__);
-         break;
-   }
+   gemm_ref_impl(((data_t*)dst), ((data_t*)src1), ((data_t*)src2), m, n, k, stride_0, stride_1, stride_2);
 }
 
-void gemm_t_ref(void * dst, void * src1, void * src2, data_type_e data_type, int m, int n, int k) {
+void gemm_t_ref(void * dst, void * src1, void * src2, data_type_e data_type, int m, int n, int k, int stride_0, int stride_1, int stride_2) {
    assert(dst);
    assert(src1);
    assert(src2);
-   switch(data_type) {
-      case FP32:
-         gemm_t_fp32_ref(((float*)dst), ((float*)src1), ((float*)src2), m, n, k);
-         break;
-      default:
-         fprintf(stderr, "[%s:%d] Data type not supported\n", __func__, __LINE__);
-         break;
-   }
+   gemm_t_ref_impl(((data_t*)dst), ((data_t*)src1), ((data_t*)src2), m, n, k, stride_0, stride_1, stride_2);
 }
 
 void scale_ref(void * dst, void * src1, void * src2, data_type_e data_type, int m, int n) {
    assert(dst);
    assert(src1);
    assert(src2);
-   switch(data_type) {
-      case FP32:
-         scale_fp32_ref(((float*)dst), ((float*)src1), *((float*)src2), m, n);
-         break;
-      default:
-         fprintf(stderr, "[%s:%d] Data type not supported\n", __func__, __LINE__);
-         break;
-   }
+   scale_ref_impl(((data_t*)dst), ((data_t*)src1), *((data_t*)src2), m, n);
 }
+
+void add_ref(void * dst, void * src1, void * src2, data_type_e data_type, int m, int n) {
+   assert(dst);
+   assert(src1);
+   assert(src2);
+   add_ref_impl(((data_t*)dst), ((data_t*)src1), ((data_t*)src2), m, n);
+}
+
 
 void softmax_ref(void * dst, void * src, data_type_e data_type, int m, int n) {
    assert(dst);
    assert(src);
-   switch(data_type) {
-      case FP32:
-         softmax_fp32_ref(((float*)dst), ((float*)src), m, n);
-         break;
-      default:
-         fprintf(stderr, "[%s:%d] Data type not supported\n", __func__, __LINE__);
-         break;
-   }
+   softmax_ref_impl(((data_t*)dst), ((data_t*)src), m, n);
 }
 
 #endif

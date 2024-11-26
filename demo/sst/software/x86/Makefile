@@ -16,4 +16,4 @@ test_tp : test_tp.c
 	$(MPICC) $(CFLAGS) -o $@ $^ $(LDFALGS)
 
 clean:
-	rm -f $(TARGET)
+	rm -f mha mpi_mha test_tp
