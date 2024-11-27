@@ -6,6 +6,7 @@
 #include <math.h>
 #include <time.h>
 #include <string.h>
+#include <limits.h>
 #include <omp.h>
 
 #define MIN(a,b)  ((a) < (b) ? (a) : (b))
@@ -26,22 +27,27 @@ typedef enum {FP32, FP64, I8, I16, I32} data_type_e;
 #if DATATYPE == 0
 typedef float data_t;
 static data_type_e data_type = FP32;
+#define DATA_MIN FLT_MIN
 #define TYPE_IS_FP
 #elif DATATYPE == 1
 typedef double data_t;
 static data_type_e data_type = FP64;
+#define DATA_MIN DBL_MIN
 #define TYPE_IS_FP
 #elif DATATYPE == 2
 typedef int8_t data_t;
 static data_type_e data_type = I8;
+#define DATA_MIN CHAR_MIN
 #define TYPE_IS_INT
 #elif DATATYPE == 3
 typedef int16_t data_t;
 static data_type_e data_type = I16;
+#define DATA_MIN SHRT_MIN
 #define TYPE_IS_INT
 #elif DATATYPE == 4
 typedef int32_t data_t;
 static data_type_e data_type = I32;
+#define DATA_MIN INT_MIN
 #define TYPE_IS_INT
 #else
    #error Unsupported choice setting
@@ -302,7 +308,7 @@ static void softmax_impl(data_t * dst, const data_t * src, int m, int n) {
    data_t max, sum;
    #pragma omp parallel for shared (dst) private(i, j, max, sum)
    for(i = 0; i < m; i++) {
-      max = FLT_MIN;
+      max = DATA_MIN;
       for(j = 0; j < n; j++)
          max = (max > src[i*n+j]) ? max : src[i*n+j];
 
