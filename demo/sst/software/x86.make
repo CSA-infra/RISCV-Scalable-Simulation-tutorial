@@ -5,13 +5,13 @@ CFLAGS=-O3 -fopenmp
 LDFLAGS=-lm
 
 .PHONY: all clean
-all : $(ARCH)/mha_openMP $(ARCH)/mpi_mha $(ARCH)/check_mpi
+all : $(ARCH)/mha_OMP $(ARCH)/mha_MPI_OMP $(ARCH)/check_mpi
 
-$(ARCH)/mha_openMP : mha_openMP.c
+$(ARCH)/mha_OMP : mha_OMP.c
 	@mkdir -p $(@D)
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
-$(ARCH)/mpi_mha : mpi_mha.c
+$(ARCH)/mha_MPI_OMP : mha_MPI_OMP.c
 	@mkdir -p $(@D)
 	$(MPICC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
