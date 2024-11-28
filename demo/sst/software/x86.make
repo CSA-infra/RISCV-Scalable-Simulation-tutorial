@@ -1,8 +1,14 @@
 ARCH=x86
-CC=gcc-12
-MPICC=mpicc
 CFLAGS=-O3 -fopenmp
 LDFLAGS=-lm
+
+ifndef CC
+$(error CC is not set)
+endif
+
+ifndef MPICC
+$(error MPICC is not set)
+endif
 
 .PHONY: all clean
 all : $(ARCH)/mha_OMP $(ARCH)/mha_MPI_OMP $(ARCH)/check_mpi
