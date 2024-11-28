@@ -1,0 +1,16 @@
+diff --git a/src/sst/elements/vanadis/Makefile.am b/src/sst/elements/vanadis/Makefile.am
+index 2895b38c5..e5e2cbeaa 100644
+--- a/src/sst/elements/vanadis/Makefile.am
++++ b/src/sst/elements/vanadis/Makefile.am
+@@ -4,8 +4,9 @@
+ 
+ AM_CPPFLAGS += \
+ 	$(MPI_CPPFLAGS) \
+-	-I$(top_srcdir)/src \
+-	-DVANADIS_BUILD_DEBUG
++	-I$(top_srcdir)/src
++
++#	-DVANADIS_BUILD_DEBUG
+ 
+ compdir = $(pkglibdir)
+ comp_LTLIBRARIES = libvanadis.la
