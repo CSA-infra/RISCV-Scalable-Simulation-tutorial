@@ -180,7 +180,8 @@ int main(int argc, char ** argv) {
    clock_gettime(CLOCK_MONOTONIC, &end);
 
    time_elapsed_s = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1e9;
-   printf("MHA execution time: %.2f ms\n", time_elapsed_s * 1000);
+   const uint64_t flop_count = 4*2*S*dmodel*dmodel + (1+h)*2*S*S*dmodel + h*S*S + 7*h*S*S + S*dmodel;
+   printf("MHA execution time: %.2f ms flop count: %ld\n", time_elapsed_s * 1000, flop_count);
 
    free(Qw);
    free(Kw);

@@ -6,6 +6,7 @@
 #include <math.h>
 #include <time.h>
 #include <string.h>
+#include <limits.h>
 #include <omp.h>
 #include <mpi.h>
 
@@ -31,26 +32,31 @@ typedef enum {FP32, FP64, I8, I16, I32} data_type_e;
 typedef float data_t;
 MPI_Datatype mpi_data_type = MPI_FLOAT;
 static data_type_e data_type = FP32;
+#define DATA_MIN FLT_MIN
 #define TYPE_IS_FP
 #elif DATATYPE == 1
 typedef double data_t;
 MPI_Datatype mpi_data_type = MPI_DOUBLE;
 static data_type_e data_type = FP64;
+#define DATA_MIN DBL_MIN
 #define TYPE_IS_FP
 #elif DATATYPE == 2
 typedef int8_t data_t;
 MPI_Datatype mpi_data_type = MPI_INT8_T;
 static data_type_e data_type = I8;
+#define DATA_MIN CHAR_MIN
 #define TYPE_IS_INT
 #elif DATATYPE == 3
 typedef int16_t data_t;
 MPI_Datatype mpi_data_type = MPI_INT16_T;
 static data_type_e data_type = I16;
+#define DATA_MIN SHRT_MIN
 #define TYPE_IS_INT
 #elif DATATYPE == 4
 typedef int32_t data_t;
 MPI_Datatype mpi_data_type = MPI_INT32_T;
 static data_type_e data_type = I32;
+#define DATA_MIN INT_MIN
 #define TYPE_IS_INT
 #else
    #error Unsupported choice setting
@@ -229,7 +235,9 @@ int main(int argc, char ** argv) {
    clock_gettime(CLOCK_MONOTONIC, &end);
 
    time_elapsed_s = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1e9;
-   printf("[rank: %d] MHA execution time: %.2f ms\n", rank, time_elapsed_s * 1000);
+   const uint64_t flop_count = 4*2*S*dmodel*dmodel/n_ranks +
+                               (1+h)*2*S*S*dmodel/n_ranks + h*S*S/n_ranks + 7*h*S*S/n_ranks + S*dmodel/n_ranks + S*dmodel;
+   printf("[rank: %d] MHA execution time: %.2f ms flop count per rank: %ld\n", rank, time_elapsed_s * 1000);
 
    if(rank == root) {
       free(Qw);
@@ -283,7 +291,7 @@ static size_t get_element_size(data_type_e type) {
 
 static void init_random_tensor_impl(data_t * tensor, size_t nmemb) {
    const data_t range = 10;
-   #pragma omp parallel for shared (tensor)
+   //#pragma omp parallel for shared (tensor)
    for(int i = 0; i < nmemb; i++)
       tensor[i] = ((data_t)rand()/(data_t)(RAND_MAX)) * range;
 }
@@ -298,7 +306,7 @@ static void gemm_impl(data_t * dst, const data_t * src1, const data_t * src2, in
    int ii0, ii1, ii2;
    int i0, i1, i2;
    data_t pp;
-   #pragma omp parallel for shared (dst, src1, src2) private(i0,i1,i2,ii0,ii1,ii2,pp) collapse(3)
+   //#pragma omp parallel for shared (dst, src1, src2) private(i0,i1,i2,ii0,ii1,ii2,pp) collapse(3)
    for (ii0 = 0; ii0<m; ii0+=bsize) {
       for (ii1 = 0; ii1<n; ii1+=bsize) {
          for(ii2 = 0; ii2<k; ii2+=bsize) {
@@ -321,7 +329,7 @@ static void gemm_t_impl(data_t * dst, const data_t * src1, const data_t * src2, 
    int ii0, ii1, ii2;
    int i0, i1, i2;
    data_t pp;
-   #pragma omp parallel for shared (dst, src1, src2) private(i0,i1,i2,ii0,ii1,ii2,pp) collapse(3)
+   //#pragma omp parallel for shared (dst, src1, src2) private(i0,i1,i2,ii0,ii1,ii2,pp) collapse(3)
    for (ii0 = 0; ii0<m; ii0+=bsize) {
       for (ii1 = 0; ii1<n; ii1+=bsize) {
          for(ii2 = 0; ii2<k; ii2+=bsize) {
@@ -341,14 +349,14 @@ static void gemm_t_impl(data_t * dst, const data_t * src1, const data_t * src2, 
 
 static void scale_impl(data_t * dst, const data_t * src1, const data_t src2, int m, int n) {
    int i;
-   #pragma omp parallel for shared (dst, src1) private(i)
+   //#pragma omp parallel for shared (dst, src1) private(i)
    for(i = 0; i < m*n; i++)
       dst[i] = src1[i] * src2;
 }
 
 static void add_impl(data_t * dst, const data_t * src1, const data_t * src2, int m, int n) {
    int i;
-   #pragma omp parallel for shared (dst, src1) private(i)
+   //#pragma omp parallel for shared (dst, src1) private(i)
    for(i = 0; i < m*n; i++)
       dst[i] = src1[i] + src2[i];
 }
@@ -356,9 +364,9 @@ static void add_impl(data_t * dst, const data_t * src1, const data_t * src2, int
 static void softmax_impl(data_t * dst, const data_t * src, int m, int n) {
    int i, j;
    data_t max, sum;
-   #pragma omp parallel for shared (dst) private(i, j, max, sum)
+   //#pragma omp parallel for shared (dst) private(i, j, max, sum)
    for(i = 0; i < m; i++) {
-      max = FLT_MIN;
+      max = DATA_MIN;
       for(j = 0; j < n; j++)
          max = (max > src[i*n+j]) ? max : src[i*n+j];
 
