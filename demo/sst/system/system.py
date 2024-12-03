@@ -1,623 +1,547 @@
-import os
 import sst
-
-verbosity = 1
-debug_level=10
-debug=1
+import os
+from sst.merlin import *
 
 
-
-# Tell SST what statistics handling we want
-enableStats = False
 sst.setStatisticLoadLevel(4)
 sst.setStatisticOutput("sst.statOutputConsole")
 
-app_args = "32 32 2"
-full_exe_name = "../software/riscv64/mha_MPI_OMP"
-exe_name= full_exe_name.split("/")[-1]
-
-cpu_clock = "3GHz"
 num_node = 2
-num_cpu_per_node = 2
-num_threads_per_cpu = 1
+os_verbosity = 0
+coherence_protocol="MESI"
+cpu_clock = "3GHz"
+physMemSize = "2GiB"
+full_exe_name = "../software/riscv64/mha_MPI_OMP"
+app_args = "32 32 2"
+# MUSL libc uses this in localtime, if we don't set TZ=UTC we
+# can get different results on different systems
+app_env = ("TZ=UTC " + "RDMA_NIC_NUM_POSTED_RECV=128 RDMA_NIC_COMP_Q_SIZE=256 OMP_NUM_THREADS=1").split()
 
-app_params = {}
-if app_args != "":
-    app_args_list = app_args.split(" ")
-    # We have a plus 1 because the executable name is arg0
-    app_args_count = len( app_args_list ) + 1
-
-    app_params["argc"] = app_args_count
-
-    arg_start = 1
-    for next_arg in app_args_list:
-        app_params["arg" + str(arg_start)] = next_arg
-        arg_start = arg_start + 1
-else:
-    app_params["argc"] = 1
-
-
-protocol="MESI"
-page_size = 4096
-cache_line_size = 64
-
-l2_cache_size = "1MiB"
-entry_cache_size = 16384 * num_cpu_per_node
-
-memory_per_node = "4GiB"
-addr_range_end = 4*1024*1024*1024 - 1
+tlbParams = {
+        "hitLatency": 10,
+        "num_hardware_threads": 1,
+        "num_tlb_entries_per_thread": 64,
+        "tlb_set_size": 4,
+        }
 
 networkParams = {
-    "packetSize" : "2048B",
-    "link_bw" : "16GB/s",
-    "xbar_bw" : "16GB/s",
-    "link_lat" : "10ns",
-    "input_latency" : "10ns",
-    "output_latency" : "10ns",
-    "flitSize" : "8B",
-    "input_buf_size" : "14KB",
-    "output_buf_size" : "14KB",
-}
+        "packetSize" : "2048B",
+        "link_bw" : "16GB/s",
+        "xbar_bw" : "16GB/s",
 
-# OS related params
-osParams = {
-    "processDebugLevel" : 0,
-    "dbgLevel" : verbosity,
-    "dbgMask" : 8,
-    "cores" : num_cpu_per_node,
-    "hardwareThreadCount" : num_threads_per_cpu,
-    "page_size"  : page_size,
-    "physMemSize" : memory_per_node,
-    "useMMU" : True,
-}
+        "link_lat" : "10ns",
+        "input_latency" : "10ns",
+        "output_latency" : "10ns",
 
-osl1cacheParams = {
-    "access_latency_cycles" : 1,
-    "cache_frequency" : cpu_clock,
-    "replacement_policy" : "lru",
-    "coherence_protocol" : protocol,
-    "associativity" : "8",
-    "cache_line_size" : cache_line_size,
-    "cache_size" : "32 KiB",
-    "L1" : "1",
-    "debug" : debug,
-    "debug_level" : debug_level,
-}
+        "flit_size" : "8B",
+        "input_buf_size" : "14KB",
+        "output_buf_size" : "14KB",
 
-mmuParams = {
-    "debug_level": 0,
-    "num_cores": num_cpu_per_node,
-    "num_threads": num_threads_per_cpu,
-    "page_size": page_size,
-}
-
-NodeRtrParams ={
-      "xbar_bw" : "256GB/s",
-      "link_bw" : "256GB/s",
-      "input_buf_size" : "2KB",
-      "num_ports" : str(num_cpu_per_node+2 + 2 if num_node > 1 else 0),
-      "flit_size" : "72B",
-      "output_buf_size" : "2KB",
-      "id" : "0",
-      "topology" : "merlin.singlerouter"
-}
-
-dirCtrlParams = {
-      "coherence_protocol" : protocol,
-      "entry_cache_size" : entry_cache_size,
-      "debug" : debug,
-      "debug_level" : debug_level,
-      "addr_range_start" : 0x0,
-      "addr_range_end" : addr_range_end
-}
-
-dirNicParams = {
-      "network_bw" : "512GB/s",
-      "group" : 2,
-}
-
-memCtrlParams = {
-      "clock" : cpu_clock,
-      "backend.mem_size" : memory_per_node,
-      "addr_range_start": 0x0,
-      "addr_range_end": addr_range_end,
-      "debug_level" : debug_level,
-      "debug" : debug
-}
-
-memParams = {
-      "mem_size" : memory_per_node,
-      "access_time" : "1 ns"
-}
-
-# CPU related params
-tlbParams = {
-    "debug_level": 0,
-    "hitLatency": 1,
-    "num_hardware_threads": num_threads_per_cpu,
-    "num_tlb_entries_per_thread": 64,
-    "tlb_set_size": 4,
-}
-
-decoderParams = {
-    "loader_mode" : "1",
-    "uop_cache_entries" : 1536,
-    "predecode_cache_entries" : 4
-}
-
-branchPredParams = {
-    "branch_entries" : 32
-}
-
-cpuParams = {
-    "clock" : cpu_clock,
-    "verbose" : verbosity,
-    "dbg_mask" : debug_level,
-    "hardware_threads": num_threads_per_cpu,
-    "physical_fp_registers" : 168 * num_threads_per_cpu,
-    "physical_integer_registers" : 180 * num_threads_per_cpu,
-    "integer_arith_cycles" : 2,
-    "integer_arith_units" : 2,
-    "fp_arith_cycles" : 4,
-    "fp_arith_units" : 2,
-    "branch_unit_cycles" : 2,
-    "reorder_slots" : 64,
-    "decodes_per_cycle" : 4,
-    "issues_per_cycle" :  4,
-    "retires_per_cycle" : 4,
-}
-
-lsqParams = {
-    "verbose" : verbosity,
-    "address_mask" : 0xFFFFFFFF,
-    "max_stores" : 8,
-    "max_loads" : 16,
-}
-
-l1dcacheParams = {
-    "access_latency_cycles" : "2",
-    "cache_frequency" : cpu_clock,
-    "replacement_policy" : "lru",
-    "coherence_protocol" : protocol,
-    "associativity" : "8",
-    "cache_line_size" : cache_line_size,
-    "cache_size" : "64 KiB",
-    "L1" : "1",
-    "debug" : debug,
-    "debug_level" : debug_level,
-}
-
-l1icacheParams = {
-    "access_latency_cycles" : "2",
-    "cache_frequency" : cpu_clock,
-    "replacement_policy" : "lru",
-    "coherence_protocol" : protocol,
-    "associativity" : "8",
-    "cache_line_size" : cache_line_size,
-    "cache_size" : "32 KiB",
-    "prefetcher" : "cassini.NextBlockPrefetcher",
-    "prefetcher.reach" : 1,
-    "L1" : "1",
-    "debug" : debug,
-    "debug_level" : debug_level,
-}
-
-l2cacheParams = {
-    "access_latency_cycles" : "14",
-    "cache_frequency" : cpu_clock,
-    "replacement_policy" : "lru",
-    "coherence_protocol" : protocol,
-    "associativity" : "16",
-    "cache_line_size" : cache_line_size,
-    "cache_size" : l2_cache_size,
-    "mshr_latency_cycles": 3,
-    "debug" : debug,
-    "debug_level" : debug_level,
-}
-busParams = {
-    "bus_frequency" : cpu_clock,
-}
-
-l2memLinkParams = {
-    "group" : 1,
-    "network_bw" : "512GB/s"
-}
+        "num_dims" : 2,
+        "torus.width" : "1x1",
+        "torus.shape" : "2x1",
+        "torus.local_ports" : 1
+        }
 
 
-NiCParams = {
-    "clock" : "1GHz",
-    "debug_level": debug_level,
-    "useDmaCache": "true",
-    "debug_mask": -1,
-    "maxPendingCmds" : 128,
-    "maxMemReqs" : 256,
-    "maxCmdQSize" : 128,
-    "cache_line_size"    : cache_line_size,
-    "baseAddr": addr_range_end + 1,
-    "cmdQSize" : 64,
-}
 
-dmaCacheParams = {
-    "access_latency_cycles" : "2",
-    "cache_frequency" : cpu_clock,
-    "replacement_policy" : "lru",
-    "coherence_protocol" : protocol,
-    "associativity" : "8",
-    "cache_line_size" : cache_line_size,
-    "cache_size" : "32KiB",
-    "debug_level" : debug_level,
-}
+verbosity = 1
+lsq_ld_entries = 16
+lsq_st_entries = os.getenv("VANADIS_LSQ_ST_ENTRIES", 8)
 
-def addParamsPrefix(prefix,params):
-    #print( prefix )
-    ret = {}
-    for key, value in params.items():
-        #print( key, value )
-        ret[ prefix + "." + key] = value
+rob_slots = os.getenv("VANADIS_ROB_SLOTS", 64)
+retires_per_cycle = os.getenv("VANADIS_RETIRES_PER_CYCLE", 4)
+issues_per_cycle = os.getenv("VANADIS_ISSUES_PER_CYCLE", 4)
+decodes_per_cycle = os.getenv("VANADIS_DECODES_PER_CYCLE", 4)
 
-    #print( ret )
-    return ret
+integer_arith_cycles = int(os.getenv("VANADIS_INTEGER_ARITH_CYCLES", 2))
+integer_arith_units = int(os.getenv("VANADIS_INTEGER_ARITH_UNITS", 2))
+fp_arith_cycles = int(os.getenv("VANADIS_FP_ARITH_CYCLES", 8))
+fp_arith_units = int(os.getenv("VANADIS_FP_ARITH_UNITS", 2))
+branch_arith_cycles = int(os.getenv("VANADIS_BRANCH_ARITH_CYCLES", 2))
 
-class CPU_Builder:
+vanadis_cpu_type = "vanadis.VanadisCPU"
+#vanadis_cpu_type = "vanadis.VanadisCPU"
+
+if (verbosity > 0):
+    print( "Verbosity: " + str(verbosity) + " -> loading Vanadis CPU type: " + vanadis_cpu_type )
+
+class vanadis_Builder:
     def __init__(self):
         pass
 
-    # CPU
-    def build( self, prefix, nodeId, cpuId ):
+    def build( self, nodeId, cpuId ):
 
-        # CPU
-        cpu = sst.Component(prefix, "vanadis.VanadisCPU")
-        cpu.addParams( cpuParams )
-        cpu.addParam( "core_id", cpuId )
-        if enableStats:
-            cpu.enableAllStatistics()
+        prefix = 'node' + str(nodeId) + '.cpu' + str( cpuId )
+        cpu = sst.Component(prefix, vanadis_cpu_type)
+        cpu.addParams({
+            "clock" : cpu_clock,
+            "verbose" : verbosity,
+            "physical_fp_registers" : 168,
+            "physical_int_registers" : 180,
+            "integer_arith_cycles" : integer_arith_cycles,
+            "integer_arith_units" : integer_arith_units,
+            "fp_arith_cycles" : fp_arith_cycles,
+            "fp_arith_units" : fp_arith_units,
+            "branch_unit_cycles" : branch_arith_cycles,
+            "print_int_reg" : 1,
+            "reorder_slots" : rob_slots,
+            "decodes_per_cycle" : decodes_per_cycle,
+            "issues_per_cycle" :  issues_per_cycle,
+            "retires_per_cycle" : retires_per_cycle,
+            "pause_when_retire_address" : os.getenv("VANADIS_HALT_AT_ADDRESS", 0)
+            })
+        cpu.enableAllStatistics()
 
-        # CPU.decoder
-        for n in range(num_threads_per_cpu):
-            decode     = cpu.setSubComponent( "decoder"+str(n), "vanadis.VanadisRISCV64Decoder" )
-            decode.addParams( decoderParams )
+        if app_args != "":
+            app_args_list = app_args.split(" ")
+            # We have a plus 1 because the executable name is arg0
+            app_args_count = len( app_args_list ) + 1
+            cpu.addParams({ "app.argc" : app_args_count })
+            if (verbosity > 0):
+                print( "Identified " + str(app_args_count) + " application arguments, adding to input parameters." )
+            arg_start = 1
+            for next_arg in app_args_list:
+                if (verbosity > 0):
+                    print( "arg" + str(arg_start) + " = " + next_arg )
+                cpu.addParams({ "app.arg" + str(arg_start) : next_arg })
+                arg_start = arg_start + 1
+        else:
+            if (verbosity > 0):
+                print( "No application arguments found, continuing with argc=0" )
 
-            if enableStats:
-                decode.enableAllStatistics()
+        decode = cpu.setSubComponent( "decoder0", "vanadis.VanadisRISCV64Decoder" )
 
-            # CPU.decoder.osHandler
-            os_hdlr     = decode.setSubComponent( "os_handler", "vanadis.VanadisRISCV64OSHandler" )
+        decode.addParams({
+            "uop_cache_entries" : 1536,
+            "predecode_cache_entries" : 4
+            })
+        decode.enableAllStatistics()
 
-            # CPU.decocer.branch_pred
-            branch_pred = decode.setSubComponent( "branch_unit", "vanadis.VanadisBasicBranchUnit" )
-            branch_pred.addParams( branchPredParams )
+        os_hdlr = decode.setSubComponent( "os_handler", "vanadis.VanadisRISCV64OSHandler" )
+        os_hdlr.addParams({
+            "verbose" : os_verbosity,
+            "brk_zero_memory" : "yes"
+            })
 
-            if enableStats:
-                branch_pred.enableAllStatistics()
+        branch_pred = decode.setSubComponent( "branch_unit", "vanadis.VanadisBasicBranchUnit")
+        branch_pred.addParams({
+            "branch_entries" : 32
+            })
+        branch_pred.enableAllStatistics()
 
-        # CPU.lsq
+        icache_if = cpu.setSubComponent( "mem_interface_inst", "memHierarchy.standardInterface" )
+        icache_if.addParam("coreId",cpuId)
+
         cpu_lsq = cpu.setSubComponent( "lsq", "vanadis.VanadisBasicLoadStoreQueue" )
-        cpu_lsq.addParams(lsqParams)
-        if enableStats:
-            cpu_lsq.enableAllStatistics()
+        cpu_lsq.addParams({
+            "verbose" : verbosity,
+            "address_mask" : 0xFFFFFFFF,
+            "max_loads" : lsq_ld_entries,
+            "max_stores" : lsq_st_entries
+            })
+        cpu_lsq.enableAllStatistics()
 
-        # CPU.lsq mem interface which connects to D-cache
-        cpuDcacheIf = cpu_lsq.setSubComponent( "memory_interface", "memHierarchy.standardInterface" )
+        dcache_if = cpu_lsq.setSubComponent( "memory_interface", "memHierarchy.standardInterface" )
+        dcache_if.addParam("coreId",cpuId)
 
-        # CPU.mem interface for I-cache
-        cpuIcacheIf = cpu.setSubComponent( "mem_interface_inst", "memHierarchy.standardInterface" )
+        # L1 D-Cache
+        l1cache = sst.Component(prefix + ".l1dcache", "memHierarchy.Cache")
+        l1cache.addParams({
+            "access_latency_cycles" : "2",
+            "cache_frequency" : cpu_clock,
+            "replacement_policy" : "lru",
+            "coherence_protocol" : coherence_protocol,
+            "associativity" : "8",
+            "cache_line_size" : "64",
+            "cache_size" : "32 KB",
+            "L1" : "1",
+            })
 
-        # L1 D-cache
-        cpu_l1dcache = sst.Component(prefix + ".l1dcache", "memHierarchy.Cache")
-        cpu_l1dcache.addParams( l1dcacheParams )
-        if enableStats:
-            cpu_l1dcache.enableAllStatistics()
+        l1dcache_2_cpu     = l1cache.setSubComponent("cpulink", "memHierarchy.MemLink")
+        l1dcache_2_l2cache = l1cache.setSubComponent("memlink", "memHierarchy.MemLink")
 
-        # L1 I-cache to cpu interface
-        l1dcache_2_cpu     = cpu_l1dcache.setSubComponent("cpulink", "memHierarchy.MemLink")
-        # L1 I-cache to L2 interface
-        l1dcache_2_l2cache = cpu_l1dcache.setSubComponent("memlink", "memHierarchy.MemLink")
+        # L1 I-Cache
+        l1icache = sst.Component(prefix + ".l1icache", "memHierarchy.Cache")
+        l1icache.addParams({
+            "access_latency_cycles" : "2",
+            "cache_frequency" : cpu_clock,
+            "replacement_policy" : "lru",
+            "coherence_protocol" : coherence_protocol,
+            "associativity" : "8",
+            "cache_line_size" : "64",
+            "cache_size" : "32 KB",
+            #"prefetcher" : "cassini.NextBlockPrefetcher",
+            #"prefetcher.reach" : 1,
+            "L1" : "1",
+            })
 
-        # L2 I-cache
-        cpu_l1icache = sst.Component( prefix + ".l1icache", "memHierarchy.Cache")
-        cpu_l1icache.addParams( l1icacheParams )
-        if enableStats:
-            cpu_l1icache.enableAllStatistics()
+        # Bus
+        cache_bus = sst.Component(prefix + ".bus", "memHierarchy.Bus")
+        cache_bus.addParams({
+            "bus_frequency" : cpu_clock,
+            })
 
-        # L1 I-iache to cpu interface
-        l1icache_2_cpu     = cpu_l1icache.setSubComponent("cpulink", "memHierarchy.MemLink")
-        # L1 I-cache to L2 interface
-        l1icache_2_l2cache = cpu_l1icache.setSubComponent("memlink", "memHierarchy.MemLink")
+        # L2 D-Cache
+        l2cache = sst.Component(prefix + ".l2cache", "memHierarchy.Cache")
+        l2cache.addParams({
+            "access_latency_cycles" : "14",
+            "cache_frequency" : cpu_clock,
+            "replacement_policy" : "lru",
+            "coherence_protocol" : coherence_protocol,
+            "associativity" : "16",
+            "cache_line_size" : "64",
+            "mshr_latency_cycles" : 3,
+            "cache_size" : "1MB",
+            })
 
-        # L2 cache
-        cpu_l2cache = sst.Component(prefix+".l2cache", "memHierarchy.Cache")
-        cpu_l2cache.addParams( l2cacheParams )
-        if enableStats:
-            cpu_l2cache.enableStats()
+        l2cache_2_cpu = l2cache.setSubComponent("cpulink", "memHierarchy.MemLink")
 
-        # L2 cache cpu interface
-        l2cache_2_l1caches = cpu_l2cache.setSubComponent("cpulink", "memHierarchy.MemLink")
-
-        # L2 cache mem interface
-        l2cache_2_mem = cpu_l2cache.setSubComponent("memlink", "memHierarchy.MemNIC")
-        l2cache_2_mem.addParams( l2memLinkParams )
-        if enableStats:
-            l2cache_2_mem.enableAllStatistics()
-
-        # L1 to L2 buss
-        cache_bus = sst.Component(prefix+".bus", "memHierarchy.Bus")
-        cache_bus.addParams(busParams)
-        if enableStats:
-            cache_bus.enableStats()
-
-
-        # CPU data TLB
+        # CPU D-TLB
         dtlbWrapper = sst.Component(prefix+".dtlb", "mmu.tlb_wrapper")
-        dtlb = dtlbWrapper.setSubComponent("tlb", "mmu." + "simpleTLB" );
+        dtlb = dtlbWrapper.setSubComponent("tlb", "mmu.simpleTLB" );
         dtlb.addParams(tlbParams)
 
-        # CPU instruction TLB
+        # CPU I-TLB
         itlbWrapper = sst.Component(prefix+".itlb", "mmu.tlb_wrapper")
         itlbWrapper.addParam("exe",True)
-        itlb = itlbWrapper.setSubComponent("tlb", "mmu." + "simpleTLB" );
+        itlb = itlbWrapper.setSubComponent("tlb", "mmu.simpleTLB" );
         itlb.addParams(tlbParams)
 
-        # CPU (data) -> TLB -> Cache
-        link_cpu_dtlb_link = sst.Link(prefix+".link_cpu_dtlb_link")
-        link_cpu_dtlb_link.connect( (cpuDcacheIf, "port", "1ns"), (dtlbWrapper, "cpu_if", "1ns") )
-        link_cpu_dtlb_link.setNoCut()
+        # CPU (data) -> D-TLB
+        link = sst.Link(prefix+".link_cpu_dtlb")
+        link.connect( (dcache_if, "port", "1ns"), (dtlbWrapper, "cpu_if", "1ns") )
 
-        # data TLB -> data L1
-        link_cpu_l1dcache_link = sst.Link(prefix+".link_cpu_l1dcache_link")
-        link_cpu_l1dcache_link.connect( (dtlbWrapper, "cache_if", "1ns"), (l1dcache_2_cpu, "port", "1ns") )
-        link_cpu_l1dcache_link.setNoCut()
+        # CPU (instruction) -> I-TLB
+        link = sst.Link(prefix+".link_cpu_itlb")
+        link.connect( (icache_if, "port", "1ns"), (itlbWrapper, "cpu_if", "1ns") )
 
-        # CPU (instruction) -> TLB -> Cache
-        link_cpu_itlb_link = sst.Link(prefix+".link_cpu_itlb_link")
-        link_cpu_itlb_link.connect( (cpuIcacheIf, "port", "1ns"), (itlbWrapper, "cpu_if", "1ns") )
-        link_cpu_itlb_link.setNoCut()
+        l1icache_2_cpu     = l1icache.setSubComponent("cpulink", "memHierarchy.MemLink")
+        l1icache_2_l2cache = l1icache.setSubComponent("memlink", "memHierarchy.MemLink")
 
-        # instruction TLB -> instruction L1
-        link_cpu_l1icache_link = sst.Link(prefix+".link_cpu_l1icache_link")
-        link_cpu_l1icache_link.connect( (itlbWrapper, "cache_if", "1ns"), (l1icache_2_cpu, "port", "1ns") )
-        link_cpu_l1icache_link.setNoCut();
+        # D-TLB -> D-L1
+        link = sst.Link(prefix+".link_l1cache")
+        link.connect( (dtlbWrapper, "cache_if", "1ns"), (l1dcache_2_cpu, "port", "1ns") )
 
-        # data L1 -> bus
-        link_l1dcache_l2cache_link = sst.Link(prefix+".link_l1dcache_l2cache_link")
-        link_l1dcache_l2cache_link.connect( (l1dcache_2_l2cache, "port", "1ns"), (cache_bus, "high_network_0", "1ns") )
-        link_l1dcache_l2cache_link.setNoCut()
+        # I-TLB -> I-L1
+        link = sst.Link(prefix+".link_l1icache")
+        link.connect( (itlbWrapper, "cache_if", "1ns"), (l1icache_2_cpu, "port", "1ns") )
 
-        # instruction L1 -> bus
-        link_l1icache_l2cache_link = sst.Link(prefix+".link_l1icache_l2cache_link")
-        link_l1icache_l2cache_link.connect( (l1icache_2_l2cache, "port", "1ns"), (cache_bus, "high_network_1", "1ns") )
-        link_l1icache_l2cache_link.setNoCut()
+        # L1 I-Cache to bus
+        link = sst.Link(prefix + ".link_l1dcache_l2cache")
+        link.connect( (l1dcache_2_l2cache, "port", "1ns"), (cache_bus, "high_network_0", "1ns") )
+
+        # L1 D-Cache to bus
+        link = sst.Link(prefix + ".link_l1icache_l2cache")
+        link.connect( (l1icache_2_l2cache, "port", "1ns"), (cache_bus, "high_network_1", "1ns") )
 
         # BUS to L2 cache
-        link_bus_l2cache_link = sst.Link(prefix+".link_bus_l2cache_link")
-        link_bus_l2cache_link.connect( (cache_bus, "low_network_0", "1ns"), (l2cache_2_l1caches, "port", "1ns") )
-        link_bus_l2cache_link.setNoCut()
+        link = sst.Link(prefix+".link_bus_l2cache")
+        link.connect( (cache_bus, "low_network_0", "1ns"), (l2cache_2_cpu, "port", "1ns") )
 
-        return (cpu, "os_link", "5ns"), (l2cache_2_mem, "port", "1ns") , (dtlb, "mmu", "1ns"), (itlb, "mmu", "1ns")
-
+        return cpu, l2cache, dtlb, itlb
 
 
-class Node_Builder:
+class vanadisOS_Builder:
     def __init__(self):
         pass
 
-    def build(self, nodeId, dummy):
-        node_prefix = "Node" + str(nodeId)
+    def build( self, numNodes, nodeId, cpuId ):
 
-        # node OS
-        node_os = sst.Component(node_prefix + ".os", "vanadis.VanadisNodeOS")
-        node_os.addParams(osParams)
-        if enableStats:
-            node_os.enableAllStatistics()
+        self.prefix = 'node' + str(nodeId)
+
+        self.nodeOS = sst.Component(self.prefix + ".os", "vanadis.VanadisNodeOS")
+        self.nodeOS.addParams({
+            "node_id": nodeId,
+            "dbgLevel" : os_verbosity,
+            "dbgMask" : -1,
+            "cores" : 1,
+            "hardwareThreadCount" : 1,
+            "page_size"  : 4096,
+            "physMemSize" : physMemSize,
+            "process0.exe" : full_exe_name,
+            "useMMU" : True,
+            })
+
+        cnt = 0
+        for value in app_args:
+            key= "process0.arg" + str(cnt);
+            self.nodeOS.addParam( key, value )
+            cnt += 1
+
+        self.nodeOS.addParam( "process0.argc", cnt )
+
+        cnt = 0
+        for value in app_env:
+            key= "process0.env" + str(cnt);
+            self.nodeOS.addParam( key, value )
+            cnt += 1
 
 
-        processList = (
-            ( 1, {
-                "env_count" : 5,
-                "env0" : "OMP_NUM_THREADS={}".format(num_cpu_per_node*num_threads_per_cpu),
-                "env1" : "PMI_SIZE={}".format(num_node),
-                "env2" : "PMI_RANK={}".format(nodeId),
-                "env3" : "RDMA_NIC_NUM_POSTED_RECV={}".format(128),
-                "env4" : "RDMA_NIC_COMP_Q_SIZE={}".format(256),
-                "exe" : full_exe_name,
-                "arg0" : exe_name,
-            } ),
-        )
+        # for mvapich runtime
+        self.nodeOS.addParam(  "process0.env" + str(cnt), "PMI_SIZE=" + str(numNodes) )
+        cnt += 1
 
-        processList[0][1].update(app_params)
+        self.nodeOS.addParam(  "process0.env" + str(cnt), "PMI_RANK=" + str(nodeId) )
+        cnt += 1
 
-        num=0
-        for i,process in processList:
-            for y in range(i):
-                node_os.addParams( addParamsPrefix( "process" + str(num), process ) )
-                num+=1
+        self.nodeOS.addParam( "process0.env_count", cnt )
 
-        # node OS MMU
-        node_os_mmu = node_os.setSubComponent( "mmu", "mmu." + "simpleMMU" )
-        node_os_mmu.addParams(mmuParams)
+        self.mmu = self.nodeOS.setSubComponent( "mmu", "mmu.simpleMMU" )
 
-        # node OS memory interface to L1 data cache
-        node_os_mem_if = node_os.setSubComponent( "mem_interface", "memHierarchy.standardInterface" )
+        self.mmu.addParams({
+            "num_cores": 1,
+            "num_threads": 1,
+            "page_size": 4096,
+            "useNicTlb": True,
+            })
 
-        # node OS l1 data cache
-        os_cache = sst.Component(node_prefix + ".os.cache", "memHierarchy.Cache")
-        os_cache.addParams(osl1cacheParams)
-        os_cache_2_cpu = os_cache.setSubComponent("cpulink", "memHierarchy.MemLink")
-        os_cache_2_mem = os_cache.setSubComponent("memlink", "memHierarchy.MemNIC")
-        os_cache_2_mem.addParams( l2memLinkParams )
+        mem_if = self.nodeOS.setSubComponent( "mem_interface", "memHierarchy.standardInterface" )
+        mem_if.addParam("coreId",cpuId)
 
-        # node router
-        node_rtr_port_count = 0
-        node_rtr = sst.Component(node_prefix + ".node_rtr", "merlin.hr_router")
-        node_rtr.addParams(NodeRtrParams)
-        node_rtr.setSubComponent("topology","merlin.singlerouter")
-        if enableStats:
-            node_rtr.enableAllStatistics()
+        l1cache = sst.Component(self.prefix + ".node_os.l1cache", "memHierarchy.Cache")
+        l1cache.addParams({
+            "access_latency_cycles" : "2",
+            "cache_frequency" : cpu_clock,
+            "replacement_policy" : "lru",
+            "coherence_protocol" : coherence_protocol,
+            "associativity" : "8",
+            "cache_line_size" : "64",
+            "cache_size" : "32 KB",
+            "L1" : "1",
+            })
 
-        # node directory controller
-        dirctrl = sst.Component(node_prefix + ".dirctrl", "memHierarchy.DirectoryController")
-        dirctrl.addParams(dirCtrlParams)
-        if enableStats:
-            dirctrl.enableStats()
+        l1cache_2_cpu = l1cache.setSubComponent("cpulink", "memHierarchy.MemLink")
 
-        # node directory controller port to memory
-        dirtoM = dirctrl.setSubComponent("memlink", "memHierarchy.MemLink")
-        # node directory controller port to cpu
-        dirNIC = dirctrl.setSubComponent("cpulink", "memHierarchy.MemNIC")
-        dirNIC.addParams(dirNicParams)
+        link = sst.Link(self.prefix + ".link_os_l1cache")
+        link.connect( (mem_if, "port", "1ns"), (l1cache_2_cpu, "port", "1ns") )
 
-        # node memory controller
-        memctrl = sst.Component(node_prefix + ".memory", "memHierarchy.MemController")
-        memctrl.addParams( memCtrlParams )
+        return l1cache
 
-        # node memory controller port to directory controller
+    def connectCPU( self, core, cpu ):
+        link = sst.Link(self.prefix + ".link_core" + str(core) + "_os")
+        link.connect( (cpu, "os_link", "5ns"), (self.nodeOS, "core0", "5ns") )
+
+    def connectTlb( self, core, name, tlblink ):
+        linkName = self.prefix + ".link_mmu_core" + str(core) + "_" + name
+        link = sst.Link( linkName )
+        link.connect( (self.mmu, "core"+str(core)+ "." +name, "1ns"), (tlblink, "mmu", "1ns") )
+
+    def connectNicTlb( self, name, niclink ):
+        linkName = self.prefix + ".link_mmu_" + name
+        link = sst.Link( linkName )
+        link.connect( (self.mmu, name, "1ns"), (niclink, "mmu", "1ns") )
+
+
+
+
+class rdmaNic_Builder:
+    def __init__(self,numNodes):
+        self.numNodes = numNodes
+
+    def build( self, nodeId ):
+
+        prefix = 'node' + str(nodeId)
+        nic = sst.Component( prefix + ".nic", "rdmaNic.nic")
+        nic.addParams({
+            "clock" : "1GHz",
+            "useDmaCache": "true",
+            "maxPendingCmds" : 128,
+            "maxMemReqs" : 256,
+            "maxCmdQSize" : 128,
+            "cache_line_size"    : 64,
+            'baseAddr': 0x80000000,
+            'cmdQSize' : 64,
+            })
+        nic.addParam( 'nicId', nodeId )
+        nic.addParam( 'pesPerNode', 1 )
+        nic.addParam( 'numNodes', self.numNodes )
+
+
+        # NIC DMA interface
+        dmaIf = nic.setSubComponent("dma", "memHierarchy.standardInterface")
+
+        # NIC MMIO interface
+        mmioIf = nic.setSubComponent("mmio", "memHierarchy.standardInterface")
+
+        # NIC DMA Cache
+        dmaCache = sst.Component(prefix + ".nicDmaCache", "memHierarchy.Cache")
+        dmaCache.addParams({
+            "access_latency_cycles" : "1",
+            "access_latency_cycles" : "2",
+            "cache_frequency" : cpu_clock,
+            "replacement_policy" : "lru",
+            "coherence_protocol" : coherence_protocol,
+            "associativity" : "8",
+            "cache_line_size" : "64",
+            "cache_size" : "32KB",
+            "L1" : "1",
+            })
+
+        # NIC DMA TLB
+        tlbWrapper = sst.Component(prefix+".nicDmaTlb", "mmu.tlb_wrapper")
+        tlb = tlbWrapper.setSubComponent("tlb", "mmu.simpleTLB" );
+        tlb.addParams(tlbParams)
+
+        # Cache to CPU interface
+        dmaCacheToCpu = dmaCache.setSubComponent("cpulink", "memHierarchy.MemLink")
+
+        # NIC DMA -> TLB
+        link = sst.Link(prefix+".link_cpu_dtlb")
+        link.connect( (dmaIf, "port", "1ns"), (tlbWrapper, "cpu_if", "1ns") )
+
+        # NIC DMA TLB -> cache
+        link = sst.Link(prefix+".link_cpu_l1dcache")
+        link.connect( (tlbWrapper, "cache_if", "1ns"), (dmaCacheToCpu, "port", "1ns") )
+
+        # NIC internode interface
+        netLink = nic.setSubComponent( "rtrLink", "merlin.linkcontrol" )
+        netLink.addParam("link_bw","16GB/s")
+        netLink.addParam("input_buf_size","14KB")
+        netLink.addParam("output_buf_size","14KB")
+
+        return mmioIf, dmaCache, tlb, (netLink, "rtr_port", '10ns')
+
+class memory_Builder:
+    def __init__(self):
+        pass
+
+    def build( self, nodeId, numPorts,  group  ):
+
+        self.prefix = 'node' + str(nodeId)
+        self.numPorts = numPorts + 1
+
+        self.chiprtr = sst.Component(self.prefix + ".chiprtr", "merlin.hr_router")
+        self.chiprtr.addParams({
+            "xbar_bw" : "50GB/s",
+            "link_bw" : "25GB/s",
+            "input_buf_size" : "40KB",
+            "output_buf_size" : "40KB",
+            "num_ports" : str(self.numPorts + 1),
+            "flit_size" : "72B",
+            "id" : "0",
+            "topology" : "merlin.singlerouter"
+            })
+
+        self.chiprtr.setSubComponent("topology","merlin.singlerouter")
+
+        dirctrl = sst.Component(self.prefix + ".dirctrl", "memHierarchy.DirectoryController")
+        dirctrl.addParams({
+            "coherence_protocol" : coherence_protocol,
+            "entry_cache_size" : "1024",
+            "addr_range_start" : "0x0",
+            "addr_range_end" : "0x7fffffff",
+            })
+        dirtoMemLink = dirctrl.setSubComponent("memlink", "memHierarchy.MemLink")
+        self.connect( "Dirctrl", numPorts, dirctrl, group, linkType="cpulink" )
+
+        memctrl = sst.Component(self.prefix + ".memory", "memHierarchy.MemController")
+        memctrl.addParams({
+            "clock" : cpu_clock,
+            "backend.mem_size" : physMemSize,
+            "backing" : "malloc",
+            "initBacking" : 1,
+            "addr_range_start" : "0x0",
+            "addr_range_end" : "0x7fffffff",
+            })
+
         memToDir = memctrl.setSubComponent("cpulink", "memHierarchy.MemLink")
 
-        # node memory controller backend
         memory = memctrl.setSubComponent("backend", "memHierarchy.simpleMem")
-        memory.addParams(memParams)
-
-        # Directory controller to memory router
-        link_dir_2_rtr = sst.Link(node_prefix + ".link_dir_2_rtr")
-        link_dir_2_rtr.connect( (node_rtr, "port"+str(node_rtr_port_count), "1ns"), (dirNIC, "port", "1ns") )
-        node_rtr_port_count = node_rtr_port_count + 1
-        link_dir_2_rtr.setNoCut()
-
-        # Directory controller to memory controller
-        link_dir_2_mem = sst.Link(node_prefix + ".link_dir_2_mem")
-        link_dir_2_mem.connect( (dirtoM, "port", "1ns"), (memToDir, "port", "1ns") )
-        link_dir_2_mem.setNoCut()
-
-        # ostlb -> os l1 cache
-        link_os_cache_link = sst.Link(node_prefix + ".link_os_cache_link")
-        link_os_cache_link.connect( (node_os_mem_if, "port", "1ns"), (os_cache_2_cpu, "port", "1ns") )
-        link_os_cache_link.setNoCut()
-
-        os_cache_2_rtr = sst.Link(node_prefix + ".os_cache_2_rtr")
-        os_cache_2_rtr.connect( (os_cache_2_mem, "port", "1ns"), (node_rtr, "port"+str(node_rtr_port_count), "1ns") )
-        node_rtr_port_count = node_rtr_port_count + 1
-        os_cache_2_rtr.setNoCut()
-
-        cpuBuilder = CPU_Builder()
-
-        # build all CPUs
-        for cpu in range(num_cpu_per_node):
-
-            prefix_cpu= node_prefix + ".cpu" + str(cpu)
-            os_hdlr, l2cache, dtlb, itlb = cpuBuilder.build(prefix_cpu, nodeId, cpu)
-
-            # MMU -> dtlb
-            link_mmu_dtlb_link = sst.Link(prefix_cpu + ".link_mmu_dtlb_link")
-            link_mmu_dtlb_link.connect( (node_os_mmu, "core"+ str(cpu) +".dtlb", "1ns"), dtlb )
-
-            # MMU -> itlb
-            link_mmu_itlb_link = sst.Link(prefix_cpu + ".link_mmu_itlb_link")
-            link_mmu_itlb_link.connect( (node_os_mmu, "core"+ str(cpu) +".itlb", "1ns"), itlb )
-
-            # CPU os handler -> node OS
-            link_core_os_link = sst.Link(prefix_cpu + ".link_core_os_link")
-            link_core_os_link.connect( os_hdlr, (node_os, "core" + str(cpu), "5ns") )
-
-            # connect cpu L2 to router
-            link_l2cache_2_rtr = sst.Link(prefix_cpu + ".link_l2cache_2_rtr")
-            link_l2cache_2_rtr.connect( l2cache, (node_rtr, "port" + str(node_rtr_port_count), "1ns") )
-            node_rtr_port_count = node_rtr_port_count + 1
-
-        if num_node > 1:
-            nic = sst.Component( node_prefix + ".nic", "rdmaNic.nic")
-            nic.addParams(NiCParams)
-            nic.addParam( 'nicId', nodeId )
-            nic.addParam( 'pesPerNode', 1 )
-            nic.addParam( 'numNodes', num_node )
-
-            if enableStats:
-                nic.enableAllStatistics()
-
-
-            # NIC DMA interface
-            dmaIf = nic.setSubComponent("dma", "memHierarchy.standardInterface")
-
-            # NIC MMIO interface
-            mmioIf = nic.setSubComponent("mmio", "memHierarchy.standardInterface")
-
-            mmioNIC = mmioIf.setSubComponent("memlink", "memHierarchy.MemNIC")
-            mmioNIC.addParams({
-                "group" : 2,
-                "network_bw" : "128GB/s",
+        memory.addParams({
+            "mem_size" : physMemSize,
+            "access_time" : "1 ns",
             })
 
-            mmioLink = sst.Link(node_prefix + ".link_mmio_rtr")
-            mmioLink.connect( (node_rtr, "port" + str(node_rtr_port_count), "1ns"), (mmioNIC, "port", "1ns") )
-            node_rtr_port_count = node_rtr_port_count + 1
+        link = sst.Link(self.prefix + ".link_dir_mem")
+        link.connect( (dirtoMemLink, "port", "1ns"), (memToDir, "port", "1ns") )
 
-            # NIC DMA Cache
-            dmaCache = sst.Component(node_prefix + ".nicDmaCache", "memHierarchy.Cache")
-            dmaCache.addParams(dmaCacheParams)
-            if enableStats:
-                dmaCache.enableStats()
+    def connect( self, name, port, comp, group=None, linkType="memlink"  ):
 
-            dmaNIC = dmaCache.setSubComponent("memlink", "memHierarchy.MemNIC")
-            dmaNIC.addParams({
-                "group" : 1,
-                "network_bw" : "128GB/s",
+        assert group
+        assert port < self.numPorts
+
+        config="{} MemNIC config: groupt={} ".format(name,group)
+
+        memNIC = comp.setSubComponent(linkType, "memHierarchy.MemNIC")
+        memNIC.addParams({
+            "group" : group,
+            "network_bw" : "25GB/s",
             })
 
-            dmaLink = sst.Link(node_prefix + ".link_dma_rtr")
-            dmaLink.connect( (node_rtr, "port" + str(node_rtr_port_count), "1ns"), (dmaNIC, "port", "1ns") )
-            node_rtr_port_count = node_rtr_port_count + 1
+        link = sst.Link(self.prefix + ".link_rtr" + str(port) )
+        link.connect( (self.chiprtr, "port" + str(port), "1ns"), (memNIC, "port", "1ns") )
 
 
-            # NIC DMA TLB
-            tlbWrapper = sst.Component(node_prefix+".nicDmaTlb", "mmu.tlb_wrapper")
-            tlb = tlbWrapper.setSubComponent("tlb", "mmu.simpleTLB" );
-            tlb.addParams(tlbParams)
+class Endpoint():
+    def __init__(self,numNodes):
+        self.numNodes = numNodes
 
-            tlbLink = sst.Link( node_prefix + ".link_mmu_nicDmaTlb" )
-            tlbLink.connect( (node_os_mmu, "nicTlb", "1ns"), (tlb, "mmu", "1ns") )
+    def prepParams(self):
+        pass
 
-            # Cache to CPU interface
-            dmaCacheToCpu = dmaCache.setSubComponent("cpulink", "memHierarchy.MemLink")
+    def build(self, nodeId, extraKeys ):
 
-            # NIC DMA -> TLB
-            link = sst.Link(node_prefix+".link_cpu_dtlb")
-            link.connect( (dmaIf, "port", "1ns"), (tlbWrapper, "cpu_if", "1ns") )
+        prefix = 'node' + str(nodeId);
 
-            # NIC DMA TLB -> cache
-            link = sst.Link(node_prefix+".link_cpu_l1dcache")
-            link.connect( (tlbWrapper, "cache_if", "1ns"), (dmaCacheToCpu, "port", "1ns") )
+        cpuBuilder = vanadis_Builder()
+        memBuilder = memory_Builder()
+        osBuilder = vanadisOS_Builder()
+        nicBuilder = rdmaNic_Builder(self.numNodes)
 
-            # NIC internode interface
-            netLink = nic.setSubComponent( "rtrLink", "merlin.linkcontrol" )
-            netLink.addParam("link_bw","16GB/s")
-            netLink.addParam("input_buf_size","14KB")
-            netLink.addParam("output_buf_size","14KB")
+        numPorts = 4
+        port = 0
+        memBuilder.build(nodeId, numPorts, group=2 )
 
-            return (netLink, "rtr_port", '10ns')
+        # build the Vanadis OS, it returns
+        osCache = osBuilder.build( self.numNodes, nodeId, 0 )
 
+        # connect OS L1 to Memory
+        #memBuilder.connect( "OS_L1", port, osCache, 1, dest="2" )
+        memBuilder.connect( "OS_L1", port, osCache, group=1 )
+        port += 1;
 
-nodeBuilder = Node_Builder()
+        # build the Vanadis CPU block, this returns
+        # cpu, L2 cache, DTLB ITLB
+        cpu, L2, dtlb, itlb = cpuBuilder.build(nodeId,0)
+
+        osBuilder.connectCPU( 0, cpu )
+        osBuilder.connectTlb( 0, "dtlb", dtlb )
+        osBuilder.connectTlb( 0, "itlb", itlb )
+
+        # connect CPU L2 to Memory
+        #memBuilder.connect( "CPU_L2", port, L2, 1, dest="2,3" )
+        memBuilder.connect( "CPU_L2", port, L2, group=1 )
+        port += 1;
+
+        # build the Rdma NIC, this returns
+        # MMIO link, DMA cache, DMA TLB
+        mmioIf, dmaCache, dmaTlb, netLink = nicBuilder.build(nodeId)
+
+        osBuilder.connectNicTlb( "nicTlb", dmaTlb )
+
+        # connect the NIC MMIO to Memory
+        #memBuilder.connect( "NIC_MMIO", port, mmioIf, 3, source="1", dest="2" )
+        memBuilder.connect( "NIC_MMIO", port, mmioIf, group=2 )
+        port += 1;
+
+        # connect the NIC DMA Cache to Memory
+        #memBuilder.connect( "NIC_DMA", port, dmaCache, 1, dest="2" )
+        memBuilder.connect( "NIC_DMA", port, dmaCache, group=1 )
+        port += 1;
+
+        return netLink
+
+ep = Endpoint( num_node )
+
 def setNode( nodeId ):
-    return nodeBuilder;
+    return ep;
 
-if num_node > 1 :
-    from sst.merlin import *
+for p in networkParams:
+    sst.merlin._params[p] = networkParams[p]
 
-    sst.merlin._params["link_lat"] = networkParams['link_lat']
-    sst.merlin._params["link_bw"] = networkParams['link_bw']
-    sst.merlin._params["xbar_bw"] = networkParams['xbar_bw']
-    sst.merlin._params["flit_size"] = networkParams['flitSize']
-    sst.merlin._params["input_latency"] = networkParams['input_latency']
-    sst.merlin._params["output_latency"] = networkParams['output_latency']
-    sst.merlin._params["input_buf_size"] = networkParams['input_buf_size']
-    sst.merlin._params["output_buf_size"] = networkParams['output_buf_size']
-    sst.merlin._params["router_radix"] = num_node
+topo = topoTorus()
+topo.prepParams()
+topo.setEndPointFunc( setNode )
+topo.build()
 
-
-    topo = topoSimple()
-    topo.prepParams()
-
-    topo.setEndPointFunc( setNode )
-
-    topo.build()
-
-else :
-    node = nodeBuilder.build(0, {})
