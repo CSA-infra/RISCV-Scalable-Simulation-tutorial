@@ -79,7 +79,10 @@ void softmax(void * dst, void * src, data_type_e data_type, int m, int n);
 int main(int argc, char ** argv) {
    const int root = 0;
    int n_ranks, rank;
+
+#ifdef ASYNC
    MPI_Request emb_req, Qw_req, Kw_req, Vw_req, attn_w_req;
+#endif
 
    MPI_Init(&argc, &argv);
    MPI_Comm_size(WORLD, &n_ranks);
@@ -106,7 +109,6 @@ int main(int argc, char ** argv) {
    }
 
    fprintf(stdout, "Model n_ranks: %d, Sequence lenght: %d, head count: %d\n", dmodel, S, h);
-
 
    MPI_Type_vector(dmodel, dmodel/n_ranks, dmodel, mpi_data_type, &col);
    MPI_Type_commit(&col);
@@ -152,8 +154,13 @@ int main(int argc, char ** argv) {
       init_random_tensor(ATTNw, data_type, dmodel*dmodel);
    }
 
+#ifdef ASYNC
    MPI_Ibcast(embeddings, dmodel*S, mpi_data_type, root, WORLD, &emb_req);
    MPI_Ibcast(ATTNw, dmodel*dmodel, mpi_data_type, root, WORLD, &attn_w_req);
+#else
+   MPI_Bcast(embeddings, dmodel*S, mpi_data_type, root, WORLD);
+   MPI_Bcast(ATTNw, dmodel*dmodel, mpi_data_type, root, WORLD);
+#endif
 
    if(rank == root) {
       Qw = calloc(dmodel*dmodel, sizeof(data_t));
@@ -170,9 +177,15 @@ int main(int argc, char ** argv) {
    Kw_heads = calloc(dmodel*dmodel/n_ranks, sizeof(data_t));
    Vw_heads = calloc(dmodel*dmodel/n_ranks, sizeof(data_t));
 
+#ifdef ASYNC
    MPI_Iscatter(Qw, 1, col_type, Qw_heads, dmodel*dmodel/n_ranks, mpi_data_type, root, WORLD, &Qw_req);
    MPI_Iscatter(Kw, 1, col_type, Kw_heads, dmodel*dmodel/n_ranks, mpi_data_type, root, WORLD, &Kw_req);
    MPI_Iscatter(Vw, 1, col_type, Vw_heads, dmodel*dmodel/n_ranks, mpi_data_type, root, WORLD, &Vw_req);
+#else
+   MPI_Scatter(Qw, 1, col_type, Qw_heads, dmodel*dmodel/n_ranks, mpi_data_type, root, WORLD);
+   MPI_Scatter(Kw, 1, col_type, Kw_heads, dmodel*dmodel/n_ranks, mpi_data_type, root, WORLD);
+   MPI_Scatter(Vw, 1, col_type, Vw_heads, dmodel*dmodel/n_ranks, mpi_data_type, root, WORLD);
+#endif
 
    Q = calloc(S*dmodel/n_ranks, sizeof(data_t));
    memset(Q, 0, S*dmodel*sizeof(data_t)/n_ranks);
@@ -195,11 +208,13 @@ int main(int argc, char ** argv) {
    ATTNout = calloc(S*dmodel, sizeof(data_t));
    memset(ATTNout, 0, S*dmodel*sizeof(data_t));
 
+#ifdef ASYNC
    MPI_Wait(&emb_req, MPI_STATUS_IGNORE);
    MPI_Wait(&Qw_req, MPI_STATUS_IGNORE);
    MPI_Wait(&Kw_req, MPI_STATUS_IGNORE);
    MPI_Wait(&Vw_req, MPI_STATUS_IGNORE);
    MPI_Wait(&attn_w_req, MPI_STATUS_IGNORE);
+#endif
 
    clock_gettime(CLOCK_MONOTONIC, &end);
 
@@ -257,8 +272,8 @@ int main(int argc, char ** argv) {
    free(QKV);
    free(ATTNw);
    free(ATTNout);
-
    MPI_Finalize();
+
    return 0;
 }
 
@@ -291,7 +306,7 @@ static size_t get_element_size(data_type_e type) {
 
 static void init_random_tensor_impl(data_t * tensor, size_t nmemb) {
    const data_t range = 10;
-   //#pragma omp parallel for shared (tensor)
+   #pragma omp parallel for shared (tensor)
    for(int i = 0; i < nmemb; i++)
       tensor[i] = ((data_t)rand()/(data_t)(RAND_MAX)) * range;
 }
@@ -306,7 +321,7 @@ static void gemm_impl(data_t * dst, const data_t * src1, const data_t * src2, in
    int ii0, ii1, ii2;
    int i0, i1, i2;
    data_t pp;
-   //#pragma omp parallel for shared (dst, src1, src2) private(i0,i1,i2,ii0,ii1,ii2,pp) collapse(3)
+   #pragma omp parallel for shared (dst, src1, src2) private(i0,i1,i2,ii0,ii1,ii2,pp) collapse(3)
    for (ii0 = 0; ii0<m; ii0+=bsize) {
       for (ii1 = 0; ii1<n; ii1+=bsize) {
          for(ii2 = 0; ii2<k; ii2+=bsize) {
@@ -329,7 +344,7 @@ static void gemm_t_impl(data_t * dst, const data_t * src1, const data_t * src2, 
    int ii0, ii1, ii2;
    int i0, i1, i2;
    data_t pp;
-   //#pragma omp parallel for shared (dst, src1, src2) private(i0,i1,i2,ii0,ii1,ii2,pp) collapse(3)
+   #pragma omp parallel for shared (dst, src1, src2) private(i0,i1,i2,ii0,ii1,ii2,pp) collapse(3)
    for (ii0 = 0; ii0<m; ii0+=bsize) {
       for (ii1 = 0; ii1<n; ii1+=bsize) {
          for(ii2 = 0; ii2<k; ii2+=bsize) {
@@ -349,14 +364,14 @@ static void gemm_t_impl(data_t * dst, const data_t * src1, const data_t * src2, 
 
 static void scale_impl(data_t * dst, const data_t * src1, const data_t src2, int m, int n) {
    int i;
-   //#pragma omp parallel for shared (dst, src1) private(i)
+   #pragma omp parallel for shared (dst, src1) private(i)
    for(i = 0; i < m*n; i++)
       dst[i] = src1[i] * src2;
 }
 
 static void add_impl(data_t * dst, const data_t * src1, const data_t * src2, int m, int n) {
    int i;
-   //#pragma omp parallel for shared (dst, src1) private(i)
+   #pragma omp parallel for shared (dst, src1) private(i)
    for(i = 0; i < m*n; i++)
       dst[i] = src1[i] + src2[i];
 }
@@ -364,7 +379,7 @@ static void add_impl(data_t * dst, const data_t * src1, const data_t * src2, int
 static void softmax_impl(data_t * dst, const data_t * src, int m, int n) {
    int i, j;
    data_t max, sum;
-   //#pragma omp parallel for shared (dst) private(i, j, max, sum)
+   #pragma omp parallel for shared (dst) private(i, j, max, sum)
    for(i = 0; i < m; i++) {
       max = DATA_MIN;
       for(j = 0; j < n; j++)
