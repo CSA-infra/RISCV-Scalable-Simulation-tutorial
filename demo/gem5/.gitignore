@@ -1,0 +1,10 @@
+*
+!.gitignore
+!README.md
+!convert_onnx_model.py
+!docker/
+!docker/*
+!iree/
+!iree/Makefile
+!iree/toolchain.generic.cmake
+!vlsid-riscv-fs.py
