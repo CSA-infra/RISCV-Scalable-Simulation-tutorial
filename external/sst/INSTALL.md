@@ -23,7 +23,7 @@ cd ../../
 ## How to install sst-elements on a debian system
 ```bash
 cd sst-elements
-git apply ../vanadis.patch
+git apply ../sst-elements.patch
 export SST_ELEMENTS_HOME=$(pwd)/install
 ./autogen.sh
 mkdir build
