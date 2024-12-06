@@ -11,7 +11,7 @@ $(error MPICC is not set)
 endif
 
 .PHONY: all clean
-all : $(ARCH)/mha_OMP $(ARCH)/mha_MPI_OMP $(ARCH)/check_mpi
+all : $(ARCH)/mha_OMP $(ARCH)/mha_MPI_OMP $(ARCH)/check_mpi $(ARCH)/hello_MPI_OMP
 
 $(ARCH)/mha_OMP : mha_OMP.c
 	@mkdir -p $(@D)
@@ -22,6 +22,10 @@ $(ARCH)/mha_MPI_OMP : mha_MPI_OMP.c
 	$(MPICC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
 $(ARCH)/check_mpi : check_mpi.c
+	@mkdir -p $(@D)
+	$(MPICC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+
+$(ARCH)/hello_MPI_OMP : hello_MPI_OMP.c
 	@mkdir -p $(@D)
 	$(MPICC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 

@@ -41,10 +41,13 @@ cd mvapich2-2.3.7-1/
 
 mkdir install
 mkdir build
+
+export MVAPICH2_INSTALL_DIR=$(pwd)/install
+
 cd build
 
 ../configure                                                                            \
-                --prefix=$(pwd)/../install                                              \
+                --prefix=${MVAPICH2_INSTALL_DIR}                                        \
                 --enable-fortran=no                                                     \
                 --with-device=ch3:rdma                                                  \
                 --enable-romio=no                                                       \
@@ -53,7 +56,7 @@ cd build
                 --enable-static=yes                                                     \
                 --with-pmi=vanadis                                                      \
                 --with-pm=none                                                          \
-                --enable-threads=multiple                                               \
+                --enable-threads=funneled                                               \
                 --enable-rsh=yes                                                        \
                 --host=riscv64-unknown-linux-musl                                       \
                 CC=${RV64_GNU_INSTALL}/bin/riscv64-unknown-linux-musl-gcc               \
