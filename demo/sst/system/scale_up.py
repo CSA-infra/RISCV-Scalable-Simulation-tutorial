@@ -3,65 +3,34 @@ import os
 from sst.merlin import *
 
 
-enableStats = False
+enableStats = True
 sst.setStatisticLoadLevel(4)
 sst.setStatisticOutput("sst.statOutputConsole")
 
 num_threads_per_cpu = 2
-num_node = 4
-app_args = "64 64 4"
-
-rdma_nic_num_posted_recv=128
-rdma_nic_comp_q_size=256
-
+num_cpu_per_node = 1
+app_args = "64 64 2"
 
 cpu_clock = "3GHz"
 
 coherence_protocol="MESI"
 cache_line_size = 64
 
-l2cache_size = 1 * 1024 * 1024 # 1MiB
-physMemSize = "2GiB"
-
+l2cache_size = 1 * 1024**2 # 1MiB
 page_size = 4096
+memsize = 4 * 1024**3 # 4GiB
+physMemSize = str(memsize) + " B"
 
 
-if num_node > 1:
-    full_exe_name = "../software/riscv64/mha_MPI_OMP"
-#    full_exe_name = "../software/riscv64/hello_MPI_OMP"
-else:
-    full_exe_name = "../software/riscv64/mha_OMP"
-
+full_exe_name = "../software/riscv64/mha_OMP"
 exe_name= full_exe_name.split("/")[-1]
-# MUSL libc uses this in localtime, if we don't set TZ=UTC we
-# can get different results on different systems
 
-num_cpu_per_node = 1
 tlbParams = {
         "hitLatency": 3,
         "num_tlb_entries_per_thread": 64,
         "tlb_set_size": 4,
-        }
-
-networkParams = {
-        "packetSize" : "2048B",
-        "link_bw" : "50GB/s",
-        "xbar_bw" : "50GB/s",
-
-        "link_lat" : "10ns",
-        "input_latency" : "10ns",
-        "output_latency" : "10ns",
-
-        "flit_size" : "256B",
-        "input_buf_size" : "14KB",
-        "output_buf_size" : "14KB",
-
-        "router_radix" : num_node
-
-#        "num_dims" : 2,
-#        "torus.width" : "1x1",
-#        "torus.shape" : "2x1",
-#        "torus.local_ports" : 1
+        "minVirtAddr" : 0x1000,
+        "maxVirtAddr" : memsize
         }
 
 nodeRtrParams = {
@@ -74,33 +43,30 @@ nodeRtrParams = {
         "topology" : "merlin.singlerouter"
         }
 
+# DRAM bandwidth = memCtrl.clock * cache_line_size * max_requests_per_cycle = 204.8 GB/s
 memCtrlParams = {
         "clock" : "1.6GHz",
         "backend.mem_size" : physMemSize,
         "backing" : "malloc",
         "initBacking" : 1,
-        "addr_range_start" : "0x0",
-        "addr_range_end" : "0x7fffffff",
+        "addr_range_start" : 0x0,
+        "addr_range_end" : memsize - 1,
+        "backendConvertor.request_width" : cache_line_size
         }
 
 memBackendParams = {
-    "mem_size" : physMemSize,
-    "access_time" : "45ns",
-    "max_requests_per_cycle" : 2,
-}
+        "mem_size" : physMemSize,
+        "access_time" : "25ns",
+        "max_requests_per_cycle" : 2,
+        "request_width" : cache_line_size
+        }
 
 memNICParams = {
-    "min_packet_size" : "72B",
-    "network_bw" : "40GB/s",
-    "network_input_buffer_size" : "4KiB",
-    "network_output_buffer_size" : "4KiB"
-}
-
-rdmaLinkParams = {
-    "link_bw" :"25GB/s",
-    "input_buf_size" : "14KB",
-    "output_buf_size" : "14KB"
-}
+        "min_packet_size" : "72B",
+        "network_bw" : "400GB/s",
+        "network_input_buffer_size" : "4KiB",
+        "network_output_buffer_size" : "4KiB"
+        }
 
 # OS related params
 osParams = {
@@ -126,7 +92,7 @@ mmuParams = {
         "num_cores": num_cpu_per_node,
         "num_threads": num_threads_per_cpu,
         "page_size": page_size,
-        "useNicTlb": True if num_node > 1 else False,
+        "useNicTlb":  False,
         }
 
 
@@ -136,19 +102,24 @@ cpuParams = {
         "hardware_threads": num_threads_per_cpu,
         "physical_fp_registers" : 168 * num_threads_per_cpu,
         "physical_integer_registers" : 180 * num_threads_per_cpu,
-        "integer_arith_cycles" : 2,
         "integer_arith_units" : 2,
-        "fp_arith_cycles" : 4,
+        "integer_arith_cycles" : 2,
+        "integer_div_units" : 1,
+        "integer_div_cycles" : 20,
+        "fp_arith_cycles" : 3,
         "fp_arith_units" : 2,
+        "fp_div_units" : 2,
+        "fp_div_cycles" : 20,
+        "branch_units" : 1,
         "branch_unit_cycles" : 2,
-        "reorder_slots" : 64,
+        "reorder_slots" : 128,
         "decodes_per_cycle" : 4,
         "issues_per_cycle" :  4,
         "retires_per_cycle" : 4,
         }
 
 branchPredParams = {
-        "branch_entries" : 32
+        "branch_entries" : 64
         }
 
 decoderParams = {
@@ -158,7 +129,6 @@ decoderParams = {
         }
 
 lsqParams = {
-        "address_mask" : 0xFFFFFFFF,
         "max_stores" : 16,
         "max_loads" : 32,
         }
@@ -172,6 +142,8 @@ l1dcacheParams = {
         "associativity" : 8,
         "cache_line_size" : cache_line_size,
         "cache_size" : "64 KiB",
+        "prefetcher" : "cassini.NextBlockPrefetcher",
+        "prefetcher.reach" : 2,
         "L1" : "1",
         }
 
@@ -209,35 +181,8 @@ dirCtrlParams = {
         "entry_cache_size" : l2cache_size*num_cpu_per_node/cache_line_size,
         "cache_line_size" : cache_line_size,
         "addr_range_start" : 0x0,
-        "addr_range_end" : 0x7fffffff,
+        "addr_range_end" : memsize - 1
         }
-
-
-rdmaNiCParams = {
-        "clock" : cpu_clock,
-        "useDmaCache": "true",
-        "maxPendingCmds" : rdma_nic_num_posted_recv,
-        "maxMemReqs" : rdma_nic_comp_q_size,
-        "maxCmdQSize" : rdma_nic_num_posted_recv,
-        "cache_line_size"    : cache_line_size,
-        'baseAddr': 0x80000000,
-        'cmdQSize' : 64,
-        }
-
-
-rdmaCacheParams = {
-        "access_latency_cycles" : 2,
-        "max_requests_per_cycle" : 1,
-        "mshr_num_entries": 64,
-        "cache_frequency" : cpu_clock,
-        "replacement_policy" : "lru",
-        "coherence_protocol" : coherence_protocol,
-        "associativity" : 8,
-        "cache_line_size" : cache_line_size,
-        "cache_size" : "32 KiB",
-        "L1" : "1",
-        }
-
 
 app_params = {}
 if app_args != "":
@@ -264,6 +209,7 @@ class CPU_Builder:
         cpu = sst.Component(prefix, vanadis_cpu_type)
         cpu.addParams( cpuParams )
         cpu.addParam( "core_id", cpuId )
+        cpu.addParam( "node_id", nodeId )
         if enableStats:
             cpu.enableAllStatistics()
 
@@ -343,34 +289,34 @@ class CPU_Builder:
 
         # CPU (data) -> D-TLB
         link = sst.Link(prefix+".link_cpu_dtlb")
-        link.connect( (dcache_if, "port", "1ns"), (dtlbWrapper, "cpu_if", "1ns") )
+        link.connect( (dcache_if, "port", "25ps"), (dtlbWrapper, "cpu_if", "25ps") )
 
         # CPU (instruction) -> I-TLB
         link = sst.Link(prefix+".link_cpu_itlb")
-        link.connect( (icache_if, "port", "1ns"), (itlbWrapper, "cpu_if", "1ns") )
+        link.connect( (icache_if, "port", "25ps"), (itlbWrapper, "cpu_if", "25ps") )
 
         l1icache_2_cpu     = l1icache.setSubComponent("cpulink", "memHierarchy.MemLink")
         l1icache_2_l2cache = l1icache.setSubComponent("memlink", "memHierarchy.MemLink")
 
         # D-TLB -> D-L1
         link = sst.Link(prefix+".link_l1cache")
-        link.connect( (dtlbWrapper, "cache_if", "1ns"), (l1dcache_2_cpu, "port", "1ns") )
+        link.connect( (dtlbWrapper, "cache_if", "25ps"), (l1dcache_2_cpu, "port", "25ps") )
 
         # I-TLB -> I-L1
         link = sst.Link(prefix+".link_l1icache")
-        link.connect( (itlbWrapper, "cache_if", "1ns"), (l1icache_2_cpu, "port", "1ns") )
+        link.connect( (itlbWrapper, "cache_if", "25ps"), (l1icache_2_cpu, "port", "25ps") )
 
         # L1 I-Cache to bus
         link = sst.Link(prefix + ".link_l1dcache_l2cache")
-        link.connect( (l1dcache_2_l2cache, "port", "1ns"), (cache_bus, "high_network_0", "1ns") )
+        link.connect( (l1dcache_2_l2cache, "port", "25ps"), (cache_bus, "high_network_0", "25ps") )
 
         # L1 D-Cache to bus
         link = sst.Link(prefix + ".link_l1icache_l2cache")
-        link.connect( (l1icache_2_l2cache, "port", "1ns"), (cache_bus, "high_network_1", "1ns") )
+        link.connect( (l1icache_2_l2cache, "port", "25ps"), (cache_bus, "high_network_1", "25ps") )
 
         # BUS to L2 cache
         link = sst.Link(prefix+".link_bus_l2cache")
-        link.connect( (cache_bus, "low_network_0", "1ns"), (l2cache_2_cpu, "port", "1ns") )
+        link.connect( (cache_bus, "low_network_0", "25ps"), (l2cache_2_cpu, "port", "25ps") )
 
         return cpu, l2cache, dtlb, itlb
 
@@ -401,23 +347,12 @@ class OS_Builder:
         if enableStats:
             self.nodeOS.enableAllStatistics()
 
-#        affinity = "GOMP_CPU_AFFINITY=\""
-#        for i in range(num_cpu_per_node*num_threads_per_cpu-1):
-#            affinity = affinity + str(i) + ","
-#
-#        affinity = affinity + "\""
-#
         processList = (
                 ( 1, {
-                    "env_count" : 7,
+                    "env_count" : 3,
                     "env0" : "OMP_NUM_THREADS={}".format(num_cpu_per_node*num_threads_per_cpu),
-                    "env1" : "PMI_SIZE={}".format(num_node),
-                    "env2" : "PMI_RANK={}".format(nodeId),
-                    "env3" : "RDMA_NIC_NUM_POSTED_RECV={}".format(rdma_nic_num_posted_recv),
-                    "env4" : "RDMA_NIC_COMP_Q_SIZE={}".format(rdma_nic_comp_q_size),
-                    "env5" : "TZ=UTC",
-                    "env6" : "MV2_ENABLE_AFFINITY=0",
-#                    "env7" : affinity,
+                    "env1" : "TZ=UTC",
+                    "env2" : "MV2_ENABLE_AFFINITY=0",
                     "exe"  : full_exe_name,
                     "arg0" : exe_name,
                     } ),
@@ -443,7 +378,7 @@ class OS_Builder:
         l1cache_2_cpu = l1cache.setSubComponent("cpulink", "memHierarchy.MemLink")
 
         link = sst.Link(self.prefix + ".link_os_l1cache")
-        link.connect( (mem_if, "port", "1ns"), (l1cache_2_cpu, "port", "1ns") )
+        link.connect( (mem_if, "port", "25ps"), (l1cache_2_cpu, "port", "25ps") )
 
         return l1cache
 
@@ -454,64 +389,7 @@ class OS_Builder:
     def connectTlb( self, core, name, tlblink ):
         linkName = self.prefix + ".link_mmu_core" + str(core) + "_" + name
         link = sst.Link( linkName )
-        link.connect( (self.mmu, "core"+str(core)+ "." +name, "1ns"), (tlblink, "mmu", "1ns") )
-
-    def connectNicTlb( self, name, niclink ):
-        linkName = self.prefix + ".link_mmu_" + name
-        link = sst.Link( linkName )
-        link.connect( (self.mmu, name, "1ns"), (niclink, "mmu", "1ns") )
-
-
-
-
-class rdmaNic_Builder:
-    def __init__(self,numNodes):
-        self.numNodes = numNodes
-
-    def build( self, nodeId ):
-
-        prefix = 'node' + str(nodeId)
-        nic = sst.Component( prefix + ".nic", "rdmaNic.nic")
-        nic.addParams(rdmaNiCParams)
-        nic.addParam( 'nicId', nodeId )
-        nic.addParam( 'pesPerNode', 1 )
-        nic.addParam( 'numNodes', self.numNodes )
-        if enableStats :
-            nic.enableAllStatistics()
-
-
-        # NIC DMA interface
-        dmaIf = nic.setSubComponent("dma", "memHierarchy.standardInterface")
-
-        # NIC MMIO interface
-        mmioIf = nic.setSubComponent("mmio", "memHierarchy.standardInterface")
-
-        # NIC DMA Cache
-        dmaCache = sst.Component(prefix + ".nicDmaCache", "memHierarchy.Cache")
-        dmaCache.addParams(rdmaCacheParams)
-
-        # NIC DMA TLB
-        tlbWrapper = sst.Component(prefix+".nicDmaTlb", "mmu.tlb_wrapper")
-        tlb = tlbWrapper.setSubComponent("tlb", "mmu.simpleTLB" );
-        tlb.addParam("num_hardware_threads", num_cpu_per_node*num_threads_per_cpu)
-        tlb.addParams(tlbParams)
-
-        # Cache to CPU interface
-        dmaCacheToCpu = dmaCache.setSubComponent("cpulink", "memHierarchy.MemLink")
-
-        # NIC DMA -> TLB
-        link = sst.Link(prefix+".link_cpu_dtlb")
-        link.connect( (dmaIf, "port", "1ns"), (tlbWrapper, "cpu_if", "1ns") )
-
-        # NIC DMA TLB -> cache
-        link = sst.Link(prefix+".link_cpu_l1dcache")
-        link.connect( (tlbWrapper, "cache_if", "1ns"), (dmaCacheToCpu, "port", "1ns") )
-
-        # NIC internode interface
-        netLink = nic.setSubComponent( "rtrLink", "merlin.linkcontrol" )
-        netLink.addParams(rdmaLinkParams)
-
-        return mmioIf, dmaCache, tlb, (netLink, "rtr_port", '10ns')
+        link.connect( (self.mmu, "core"+str(core)+ "." +name, "25ps"), (tlblink, "mmu", "25ps") )
 
 class memory_Builder:
     def __init__(self):
@@ -533,13 +411,13 @@ class memory_Builder:
         dirctrl = sst.Component(self.prefix + ".dirctrl", "memHierarchy.DirectoryController")
         dirctrl.addParams(dirCtrlParams)
         dirtoMemLink = dirctrl.setSubComponent("memlink", "memHierarchy.MemLink")
-        self.connect( "Dirctrl", self.numPorts - 1, dirctrl, group, linkType="cpulink" )
-        if dirctrl:
+        self.connect( "Dirctrl", self.numPorts -1 , dirctrl, group, linkType="cpulink" )
+        if enableStats:
             dirctrl.enableAllStatistics()
 
         memctrl = sst.Component(self.prefix + ".memory", "memHierarchy.MemController")
         memctrl.addParams(memCtrlParams)
-        if dirctrl:
+        if enableStats:
             memctrl.enableAllStatistics()
 
         memToDir = memctrl.setSubComponent("cpulink", "memHierarchy.MemLink")
@@ -548,7 +426,7 @@ class memory_Builder:
         memory.addParams(memBackendParams)
 
         link = sst.Link(self.prefix + ".link_dir_mem")
-        link.connect( (dirtoMemLink, "port", "1ns"), (memToDir, "port", "1ns") )
+        link.connect( (dirtoMemLink, "port", "25ps"), (memToDir, "port", "25ps") )
 
     def connect( self, name, port, comp, group=None, linkType="memlink"  ):
 
@@ -560,12 +438,12 @@ class memory_Builder:
         memNIC.addParams(memNICParams)
 
         link = sst.Link(self.prefix + ".link_rtr" + str(port) )
-        link.connect( (self.chiprtr, "port" + str(port), "1ns"), (memNIC, "port", "1ns") )
+        link.connect( (self.chiprtr, "port" + str(port), "25ps"), (memNIC, "port", "25ps") )
 
 
-class Endpoint():
-    def __init__(self,numNodes):
-        self.numNodes = numNodes
+class node_Builder():
+    def __init__(self):
+        pass
 
     def prepParams(self):
         pass
@@ -578,12 +456,12 @@ class Endpoint():
         memBuilder = memory_Builder()
         osBuilder = OS_Builder()
 
-        numPorts = 1 + num_cpu_per_node + (2 if self.numNodes > 1 else 0)
+        numPorts = 1  + num_cpu_per_node
         port = 0
         memBuilder.build(nodeId, numPorts, group=2 )
 
         # build the Vanadis OS, it returns
-        osCache = osBuilder.build( self.numNodes, nodeId)
+        osCache = osBuilder.build( 1, nodeId)
 
         # connect OS L1 to Memory
         #memBuilder.connect( "OS_L1", port, osCache, 1, dest="2" )
@@ -604,39 +482,6 @@ class Endpoint():
             memBuilder.connect( "CPU_L2", port, L2, group=1 )
             port += 1;
 
-        if self.numNodes > 1 :
-            nicBuilder = rdmaNic_Builder(self.numNodes)
-            # build the Rdma NIC, this returns
-            # MMIO link, DMA cache, DMA TLB
-            mmioIf, dmaCache, dmaTlb, netLink = nicBuilder.build(nodeId)
+nodeBuilder = node_Builder()
 
-            osBuilder.connectNicTlb( "nicTlb", dmaTlb )
-
-            # connect the NIC MMIO to Memory
-            #memBuilder.connect( "NIC_MMIO", port, mmioIf, 3, source="1", dest="2" )
-            memBuilder.connect( "NIC_MMIO", port, mmioIf, group=2 )
-            port += 1;
-
-            # connect the NIC DMA Cache to Memory
-            #memBuilder.connect( "NIC_DMA", port, dmaCache, 1, dest="2" )
-            memBuilder.connect( "NIC_DMA", port, dmaCache, group=1 )
-            port += 1;
-            return netLink
-
-ep = Endpoint( num_node )
-
-def setNode( nodeId ):
-    return ep;
-
-if num_node > 1:
-    for p in networkParams:
-        sst.merlin._params[p] = networkParams[p]
-
-#    topo = topoTorus()
-    topo = topoSimple()
-    topo.prepParams()
-    topo.setEndPointFunc( setNode )
-    topo.build()
-else:
-    ep.build(0, {})
-
+nodeBuilder.build(0,{})

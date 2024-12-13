@@ -4,7 +4,7 @@
    contain the root `toctree` directive.
 
 A tutorial on scalable system simulations for RISC-V architectures and performance analysis for machine learning workloads
-========================
+==========================================================================================================================
 This tutorial aims to provide a comprehensive introduction to computer system simulations
 and performance analysis, focusing on the integration and application of consensual open-source frameworks
 like Structural Simulation Toolkit (SST), Gem5, and Multi-Level Intermediate Representation (MLIR).
@@ -18,4 +18,5 @@ where the simulation framework used is chosen based on a trade-off between fidel
    :caption: Contents:
 
    gem5
+   sst
 
