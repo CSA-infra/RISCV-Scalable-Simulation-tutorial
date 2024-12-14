@@ -1,15 +1,22 @@
 import sst
 import os
+import sys
 from sst.merlin import *
 
 
 enableStats = True
-sst.setStatisticLoadLevel(4)
-sst.setStatisticOutput("sst.statOutputConsole")
+sst.setStatisticLoadLevel(10)
+if len(sys.argv) > 1:
+    sst.setStatisticOutput("sst.statOutputCSV",
+                       {   "filepath" : sys.argv[1],
+                        "separator" : ";"
+                        } )
+else:
+    sst.setStatisticOutput("sst.statOutputConsole")
 
 num_threads_per_cpu = 2
-num_cpu_per_node = 1
-app_args = "64 64 2"
+num_cpu_per_node = 2
+app_args = "128 128 2"
 
 cpu_clock = "3GHz"
 
@@ -22,7 +29,7 @@ memsize = 4 * 1024**3 # 4GiB
 physMemSize = str(memsize) + " B"
 
 
-full_exe_name = "../software/riscv64/mha_OMP"
+full_exe_name = "../software/riscv64/mha_OMP_16"
 exe_name= full_exe_name.split("/")[-1]
 
 tlbParams = {
@@ -210,8 +217,7 @@ class CPU_Builder:
         cpu.addParams( cpuParams )
         cpu.addParam( "core_id", cpuId )
         cpu.addParam( "node_id", nodeId )
-        if enableStats:
-            cpu.enableAllStatistics()
+        cpu.enableAllStatistics()
 
         # CPU.decoder
         for n in range(num_threads_per_cpu):
@@ -308,15 +314,15 @@ class CPU_Builder:
 
         # L1 I-Cache to bus
         link = sst.Link(prefix + ".link_l1dcache_l2cache")
-        link.connect( (l1dcache_2_l2cache, "port", "25ps"), (cache_bus, "high_network_0", "25ps") )
+        link.connect( (l1dcache_2_l2cache, "port", "1ns"), (cache_bus, "high_network_0", "1ns") )
 
         # L1 D-Cache to bus
         link = sst.Link(prefix + ".link_l1icache_l2cache")
-        link.connect( (l1icache_2_l2cache, "port", "25ps"), (cache_bus, "high_network_1", "25ps") )
+        link.connect( (l1icache_2_l2cache, "port", "1ns"), (cache_bus, "high_network_1", "1ns") )
 
         # BUS to L2 cache
         link = sst.Link(prefix+".link_bus_l2cache")
-        link.connect( (cache_bus, "low_network_0", "25ps"), (l2cache_2_cpu, "port", "25ps") )
+        link.connect( (cache_bus, "low_network_0", "1ns"), (l2cache_2_cpu, "port", "1ns") )
 
         return cpu, l2cache, dtlb, itlb
 

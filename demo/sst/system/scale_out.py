@@ -2,15 +2,32 @@ import sst
 import os
 from sst.merlin import *
 
-os_verbosity = 0
+os_verbosity = 16
 
-enableStats = False
-sst.setStatisticLoadLevel(4)
-sst.setStatisticOutput("sst.statOutputConsole")
+enableStats = True
+sst.setStatisticLoadLevel(10)
+if len(sys.argv) > 1:
+    sst.setStatisticOutput("sst.statOutputCSV",
+                       {   "filepath" : sys.argv[1],
+                        "separator" : ";"
+                        } )
+else:
+    sst.setStatisticOutput("sst.statOutputConsole")
 
-num_threads_per_cpu = 2
+num_node_per_router = 2
+
+network_topology = "simple"
+
+#network_topology = "torus"
+#torus_width = 2
+#torus_shape = [2, 2]
+#
+#network_topology = "fattree"
+#fattree_shape = "1,1:2,2"
+#fattree_shape = ':'.join([fattree_shape, str(num_node_per_router)])
+
+num_threads_per_cpu = 4
 num_cpu_per_node = 1
-num_node = 4
 app_args = "64 64 4"
 
 cpu_clock = "3GHz"
@@ -25,13 +42,9 @@ physMemSize = str(memsize) + " B"
 
 
 full_exe_name = "../software/riscv64/mha_MPI_OMP"
-#full_exe_name = "../software/riscv64/hello_MPI_OMP"
+full_exe_name = "../software/riscv64/hello_MPI_OMP"
 
 exe_name= full_exe_name.split("/")[-1]
-
-network_topology = "simple"
-network_topology = "torus"
-
 
 rdma_nic_num_posted_recv=128
 rdma_nic_comp_q_size=256
@@ -65,20 +78,40 @@ rdmaLinkParams = {
         }
 
 
-
-
 if network_topology == "torus":
+
+    shape = 'x'.join([str(x) for x in torus_shape])
+    width = 'x'.join([str(torus_width) for x in range(len(torus_shape))])
+
+    print(shape)
+    print(width)
+
     networkParams |= {
-            "num_dims" : 2,
-            "torus.width" : "1x1",
-            "torus.shape" : "2x2",
-            "torus.local_ports" : 1
+            "num_dims" : len(torus_shape),
+            "torus.width" : width,
+            "torus.shape" : shape,
+            "torus.local_ports" : num_node_per_router
             }
+
+    num_node = num_node_per_router
+    for x in torus_shape:
+        num_node = num_node * x
+
+elif network_topology == "fattree":
+    networkParams |= {
+            "fattree.shape" : fattree_shape,
+            }
+
+    num_node = 1
+    for l in fattree_shape.split(":"):
+        for h in l[0].split(","):
+            num_node *= int(h)
 
 else: # simple
     networkParams |= {
-            "router_radix" : num_node
+            "router_radix" : num_node_per_router
             }
+    num_node = num_node_per_router
 
 
 nodeRtrParams = {
@@ -129,7 +162,7 @@ memNICParams = {
 # OS related params
 osParams = {
         "dbgLevel" : os_verbosity,
-        "dbgMask" : 8,
+        "dbgMask" : 16,
         "cores" : num_cpu_per_node,
         "hardwareThreadCount" : num_threads_per_cpu,
         "page_size"  : page_size,
@@ -158,6 +191,8 @@ mmuParams = {
 
 vanadis_cpu_type = "vanadis.VanadisCPU"
 cpuParams = {
+        "dbg_mask" : 16,
+        "verbose" : 16,
         "clock" : cpu_clock,
         "hardware_threads": num_threads_per_cpu,
         "physical_fp_registers" : 168 * num_threads_per_cpu,
@@ -396,15 +431,15 @@ class CPU_Builder:
 
         # L1 I-Cache to bus
         link = sst.Link(prefix + ".link_l1dcache_l2cache")
-        link.connect( (l1dcache_2_l2cache, "port", "25ps"), (cache_bus, "high_network_0", "25ps") )
+        link.connect( (l1dcache_2_l2cache, "port", "1ns"), (cache_bus, "high_network_0", "1ns") )
 
         # L1 D-Cache to bus
         link = sst.Link(prefix + ".link_l1icache_l2cache")
-        link.connect( (l1icache_2_l2cache, "port", "25ps"), (cache_bus, "high_network_1", "25ps") )
+        link.connect( (l1icache_2_l2cache, "port", "1ns"), (cache_bus, "high_network_1", "1ns") )
 
         # BUS to L2 cache
         link = sst.Link(prefix+".link_bus_l2cache")
-        link.connect( (cache_bus, "low_network_0", "25ps"), (l2cache_2_cpu, "port", "25ps") )
+        link.connect( (cache_bus, "low_network_0", "1ns"), (l2cache_2_cpu, "port", "1ns") )
 
         return cpu, l2cache, dtlb, itlb
 
@@ -657,6 +692,8 @@ for p in networkParams:
 
 if network_topology == "torus":
     topo = topoTorus()
+elif network_topology == "fattree":
+    topo = topoFatTree()
 else:
     topo = topoSimple()
 

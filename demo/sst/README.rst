@@ -119,7 +119,10 @@ the scaled *QK* is computed. Afterward, the result of the *softmax* is multiplie
 Values matrix, producing *QKV* matrix. Finally, *QKV* is summed with the *Embeddings*
 matrix.
 
-The corresponding code is implemented in **C**  (demo/sst/software/mha_OMP.c), and is parallelized with **OpenMP**.
+
+.. _mha_OMP: ../../demo/sst/software/mha_OMP.c
+
+The corresponding code is implemented in **C** `mha_OMP`_, and is parallelized with **OpenMP**.
 
 
 
@@ -132,12 +135,14 @@ The corresponding code is implemented in **C**  (demo/sst/software/mha_OMP.c), a
 
    Illustration of the workload run on a multi-node system.
 
+.. _mha_mpi_OMP: ../../demo/sst/software/mha_MPI_OMP.c
+
 As the *heads* can be processed independently until the addition, the workload can be
 easily parallelized on a distributed memory system. As illustrated in Figure :numref:`OMP_MPI_MHA figure`,
 running the workload on a multi-node system requires only a few extra steps.
 The corresponding application is implemented with MPI to handle the communication between
 the nodes and OpenMP to parallelize the kernels within a node. The code is written in
-**C** as well (demo/sst/software/mha_MPI_OMP.c)
+**C** as well `mha_mpi_OMP`_
 Firstly, the *Embeddings* matrix needs to be locally stored in every memory space. To do that we
 use a broadcast. Every node produces different heads, hence only the required weights are
 stored in each memory domain. Consequently, less computation are required. After, the
@@ -149,8 +154,24 @@ all the nodes have the *Output* result.
 DEMO
 ____
 
+For the demo, we will explore two systems. The first is a single-node system, the second
+is a scale-out system.
+
 Scale-up system
 ~~~~~~~~~~~~~~~
+.. _scale_up: ../../demo/sst/system/scale_up.py
+
+The python script `scale_up`_ build the system for the scale up system. You can explore
+the script to understand how a system is built with SST.
+
+You can run a simulation by executing the following command in a terminal from
+*demo/sst/ssytem* folder:
+
+.. code:: bash
+
+   sst scale_up.py
+
+
 
 
 Scale-out system

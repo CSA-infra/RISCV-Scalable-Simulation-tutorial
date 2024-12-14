@@ -27,6 +27,7 @@ You must install **SST-core** SST. To do this, run the following commands in a t
    ../configure --prefix=$SST_CORE_HOME
    make -j all
    make install
+   export PATH=$SST_CORE_HOME/bin:$PATH
    cd ../../../
 
 Then, you can install **SST-elements** as follow:

@@ -64,10 +64,10 @@ static data_type_e data_type = I32;
 
 void init_random_tensor(void * tensor, data_type_e data_type, size_t nmemb);
 
-void gemm(void * dst, void * src1, void * src2, data_type_e data_type, int m, int n, int k,
+void gemm(void * dst, void * src1, void * src2, data_type_e data_type, int heads, int m, int n, int k,
           int stride_0, int stride_1, int stride_2);
 
-void gemm_t(void * dst, void * src1, void * src2, data_type_e data_type, int m, int n, int k,
+void gemm_t(void * dst, void * src1, void * src2, data_type_e data_type, int heads, int m, int n, int k,
           int stride_0, int stride_1, int stride_2);
 
 void scale(void * dst, void * src1, void * src2, data_type_e data_type, int m, int n);
@@ -224,23 +224,19 @@ int main(int argc, char ** argv) {
    clock_gettime(CLOCK_MONOTONIC, &start);
    /* MHA */
 
-   gemm(Q, embeddings, Qw_heads, data_type, S, dmodel/n_ranks, dmodel, dmodel/n_ranks, dmodel, dmodel/n_ranks);
-   gemm(K, embeddings, Kw_heads, data_type, S, dmodel/n_ranks, dmodel, dmodel/n_ranks, dmodel, dmodel/n_ranks);
-   gemm(V, embeddings, Vw_heads, data_type, S, dmodel/n_ranks, dmodel, dmodel/n_ranks, dmodel, dmodel/n_ranks);
+   gemm(Q, embeddings, Qw_heads, data_type, 1, S, dmodel/n_ranks, dmodel, dmodel/n_ranks, dmodel, dmodel/n_ranks);
+   gemm(K, embeddings, Kw_heads, data_type, 1, S, dmodel/n_ranks, dmodel, dmodel/n_ranks, dmodel, dmodel/n_ranks);
+   gemm(V, embeddings, Vw_heads, data_type, 1, S, dmodel/n_ranks, dmodel, dmodel/n_ranks, dmodel, dmodel/n_ranks);
 
-   for(int i = 0; i < h/n_ranks; i++) {
-      gemm_t(&KQ[S*S*i], &Q[dmodel/h*i], K, data_type, S, S, dmodel/h, S, dmodel/n_ranks, dmodel/n_ranks);
-   }
+   gemm_t(KQ, Q, K, data_type, h/n_ranks, S, S, dmodel/h, S, dmodel/n_ranks, dmodel/n_ranks);
 
    scale(KQ, KQ, ((void*)&scale_f), data_type, h/n_ranks*S, S);
 
    softmax(softmax_out, KQ, data_type, h/n_ranks*S, S);
 
-   for(int i = 0; i < h/n_ranks; i++) {
-      gemm(&QKV[dmodel/h*i], &softmax_out[S*S*i], &V[dmodel/h*i], data_type, S, dmodel/h, S, dmodel/n_ranks, S, dmodel/n_ranks);
-   }
+   gemm(QKV, softmax_out, V, data_type, h/n_ranks, S, dmodel/h, S, dmodel/n_ranks, S, dmodel/n_ranks);
 
-   gemm(ATTNout, QKV, ATTNw, data_type, S, dmodel, dmodel/n_ranks, dmodel, dmodel/n_ranks, dmodel);
+   gemm(ATTNout, QKV, ATTNw, data_type, 1, S, dmodel, dmodel/n_ranks, dmodel, dmodel/n_ranks, dmodel);
 
    add(&ATTNout[S/n_ranks*rank*dmodel], &ATTNout[S/n_ranks*rank*dmodel], &embeddings[S/n_ranks*rank*dmodel], data_type, S/n_ranks, dmodel);
 
@@ -252,7 +248,7 @@ int main(int argc, char ** argv) {
    time_elapsed_s = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1e9;
    const uint64_t flop_count = 4*2*S*dmodel*dmodel/n_ranks +
                                (1+h)*2*S*S*dmodel/n_ranks + h*S*S/n_ranks + 7*h*S*S/n_ranks + S*dmodel/n_ranks + S*dmodel;
-   printf("[rank: %d] MHA execution time: %.2f ms flop count per rank: %ld\n", rank, time_elapsed_s * 1000);
+   printf("[rank: %d] MHA execution time: %.2f ms flop count per rank: %lu\n", rank, time_elapsed_s * 1000);
 
    if(rank == root) {
       free(Qw);
@@ -274,7 +270,7 @@ int main(int argc, char ** argv) {
    free(ATTNout);
    MPI_Finalize();
 
-   return 0;
+   exit(EXIT_SUCCESS);
 }
 
 static size_t get_element_size(data_type_e type) {
@@ -316,22 +312,27 @@ void init_random_tensor(void * tensor, data_type_e data_type, size_t nmemb) {
    init_random_tensor_impl(((data_t*)tensor), nmemb);
 }
 
-static void gemm_impl(data_t * dst, const data_t * src1, const data_t * src2, int m, int n, int k, int stride_0, int stride_1, int stride_2) {
-   const int bsize = 64;
+static void gemm_impl(data_t * dst, const data_t * src1, const data_t * src2, int heads, int m, int n, int k,
+      int stride_0, int stride_1, int stride_2) {
+   const int bsize = 16;
    int ii0, ii1, ii2;
    int i0, i1, i2;
+   int h;
+   int start_head, stop_head;
    data_t pp;
-   #pragma omp parallel for shared (dst, src1, src2) private(i0,i1,i2,ii0,ii1,ii2,pp) collapse(3)
-   for (ii0 = 0; ii0<m; ii0+=bsize) {
-      for (ii1 = 0; ii1<n; ii1+=bsize) {
-         for(ii2 = 0; ii2<k; ii2+=bsize) {
-            for (i0 = ii0; i0 < MIN(ii0+bsize,m); i0++) {
-               for (i1 = ii1; i1 < MIN(ii1+bsize,n); i1++) {
-                  pp = 0;
-                  for (i2 = ii2; i2 < MIN(ii2+bsize,k); i2++) {
-                     pp += src1[i0*(stride_1)+i2] * src2[i2*stride_2+i1];
+   #pragma omp parallel for shared (dst, src1, src2) private(h,i0,i1,i2,ii0,ii1,ii2,pp) collapse(2)
+   for (h=0; h < heads; h++) {
+      for (ii0 = 0; ii0<m; ii0+=bsize) {
+         for (ii1 = h*n; ii1<((h+1)*n); ii1+=bsize) {
+            for(ii2 = 0; ii2<k; ii2+=bsize) {
+               for (i0 = ii0; i0 < MIN(ii0+bsize,m); i0++) {
+                  for (i1 = ii1; i1 < MIN(ii1+bsize,((h+1)*n)); i1++) {
+                     pp = 0;
+                     for (i2 = ii2; i2 < MIN(ii2+bsize,k); i2++) {
+                        pp += src1[(i0+h*m)*(stride_1)+i2] * src2[i2*stride_2+i1];
+                     }
+                     dst[i0*(stride_0)+i1]+= pp;
                   }
-                  dst[i0*(stride_0)+i1]+= pp;
                }
             }
          }
@@ -339,22 +340,26 @@ static void gemm_impl(data_t * dst, const data_t * src1, const data_t * src2, in
    }
 }
 
-static void gemm_t_impl(data_t * dst, const data_t * src1, const data_t * src2, int m, int n, int k, int stride_0, int stride_1, int stride_2) {
-   const int bsize = 64;
+static void gemm_t_impl(data_t * dst, const data_t * src1, const data_t * src2, int heads, int m, int n, int k,
+      int stride_0, int stride_1, int stride_2) {
+   const int bsize = 16;
    int ii0, ii1, ii2;
    int i0, i1, i2;
+   int h;
    data_t pp;
-   #pragma omp parallel for shared (dst, src1, src2) private(i0,i1,i2,ii0,ii1,ii2,pp) collapse(3)
-   for (ii0 = 0; ii0<m; ii0+=bsize) {
-      for (ii1 = 0; ii1<n; ii1+=bsize) {
-         for(ii2 = 0; ii2<k; ii2+=bsize) {
-            for (i0 = ii0; i0 < MIN(ii0+bsize,m); i0++) {
-               for (i1 = ii1; i1 < MIN(ii1+bsize,n); i1++) {
-                  pp = 0;
-                  for (i2 = ii2; i2 < MIN(ii2+bsize,k); i2++) {
-                     pp += src1[i0*(stride_1)+i2] * src2[i1*stride_2+i2];
+   #pragma omp parallel for shared (dst, src1, src2) private(h,i0,i1,i2,ii0,ii1,ii2,pp) collapse(1)
+   for(h = 0; h < heads; h++) {
+      for (ii0 = 0; ii0 < m; ii0+=bsize) {
+         for (ii1 = 0; ii1<n; ii1+=bsize) {
+            for(ii2 = (h * k); ii2<((h+1)*k); ii2+=bsize) {
+               for (i0 = ii0; i0 < MIN(ii0+bsize,m); i0++) {
+                  for (i1 = ii1; i1 < MIN(ii1+bsize,n); i1++) {
+                     pp = 0;
+                     for (i2 = ii2; i2 < MIN(ii2+bsize,((h+1)*k)); i2++) {
+                        pp += src1[i0*stride_1+i2] * src2[i1*stride_2+i2];
+                     }
+                     dst[(i0+h*m)*stride_0+i1]+= pp;
                   }
-                  dst[i0*stride_0+i1]+= pp;
                }
             }
          }
@@ -399,18 +404,22 @@ static void softmax_impl(data_t * dst, const data_t * src, int m, int n) {
 }
 
 
-void gemm(void * dst, void * src1, void * src2, data_type_e data_type, int m, int n, int k, int stride_0, int stride_1, int stride_2) {
+void gemm(void * dst, void * src1, void * src2, data_type_e data_type, int heads, int m, int n, int k,
+          int stride_0, int stride_1, int stride_2) {
    assert(dst);
    assert(src1);
    assert(src2);
-   gemm_impl(((data_t*)dst), ((data_t*)src1), ((data_t*)src2), m, n, k, stride_0, stride_1, stride_2);
+   assert(heads*n == stride_0);
+   gemm_impl(((data_t*)dst), ((data_t*)src1), ((data_t*)src2), heads, m, n, k, stride_0, stride_1, stride_2);
 }
 
-void gemm_t(void * dst, void * src1, void * src2, data_type_e data_type, int m, int n, int k, int stride_0, int stride_1, int stride_2) {
+void gemm_t(void * dst, void * src1, void * src2, data_type_e data_type, int heads, int m, int n, int k,
+          int stride_0, int stride_1, int stride_2) {
    assert(dst);
    assert(src1);
    assert(src2);
-   gemm_t_impl(((data_t*)dst), ((data_t*)src1), ((data_t*)src2), m, n, k, stride_0, stride_1, stride_2);
+   assert(heads*k == stride_1);
+   gemm_t_impl(((data_t*)dst), ((data_t*)src1), ((data_t*)src2), heads, m, n, k, stride_0, stride_1, stride_2);
 }
 
 void scale(void * dst, void * src1, void * src2, data_type_e data_type, int m, int n) {
