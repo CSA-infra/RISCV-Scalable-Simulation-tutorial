@@ -2,7 +2,7 @@ import sst
 import os
 from sst.merlin import *
 
-os_verbosity = 16
+os_verbosity = 0
 
 enableStats = True
 sst.setStatisticLoadLevel(10)
@@ -26,7 +26,7 @@ network_topology = "simple"
 #fattree_shape = "1,1:2,2"
 #fattree_shape = ':'.join([fattree_shape, str(num_node_per_router)])
 
-num_threads_per_cpu = 4
+num_threads_per_cpu = 1
 num_cpu_per_node = 1
 app_args = "64 64 4"
 
@@ -42,7 +42,6 @@ physMemSize = str(memsize) + " B"
 
 
 full_exe_name = "../software/riscv64/mha_MPI_OMP"
-full_exe_name = "../software/riscv64/hello_MPI_OMP"
 
 exe_name= full_exe_name.split("/")[-1]
 
@@ -192,7 +191,7 @@ mmuParams = {
 vanadis_cpu_type = "vanadis.VanadisCPU"
 cpuParams = {
         "dbg_mask" : 16,
-        "verbose" : 16,
+        "verbose" : 0,
         "clock" : cpu_clock,
         "hardware_threads": num_threads_per_cpu,
         "physical_fp_registers" : 168 * num_threads_per_cpu,
@@ -472,14 +471,13 @@ class OS_Builder:
 
         processList = (
                 ( 1, {
-                    "env_count" : 7,
+                    "env_count" : 6,
                     "env0" : "OMP_NUM_THREADS={}".format(num_cpu_per_node*num_threads_per_cpu),
                     "env1" : "PMI_SIZE={}".format(num_node),
                     "env2" : "PMI_RANK={}".format(nodeId),
                     "env3" : "RDMA_NIC_NUM_POSTED_RECV={}".format(rdma_nic_num_posted_recv),
                     "env4" : "RDMA_NIC_COMP_Q_SIZE={}".format(rdma_nic_comp_q_size),
                     "env5" : "TZ=UTC",
-                    "env6" : "MV2_ENABLE_AFFINITY=0",
                     "exe"  : full_exe_name,
                     "arg0" : exe_name,
                     } ),

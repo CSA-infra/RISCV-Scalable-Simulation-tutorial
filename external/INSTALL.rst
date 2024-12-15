@@ -84,24 +84,24 @@ Finally, you can build and install **mpicc** as follow:
 
    cd build
 
-   ../configure                                                                  \
-         --prefix=${MVAPICH2_INSTALL_DIR}                                        \
-         --enable-fortran=no                                                     \
-         --with-device=ch3:rdma                                                  \
-         --enable-romio=no                                                       \
-         --enable-hybrid=no                                                      \
-         --enable-shared=no                                                      \
-         --enable-static=yes                                                     \
-         --with-pmi=vanadis                                                      \
-         --with-pm=none                                                          \
-         --enable-threads=single                                                 \
-         --enable-rsh=yes                                                        \
-         --host=riscv64-unknown-linux-musl                                       \
-         CC=${RV64_GNU_INSTALL}/bin/riscv64-unknown-linux-musl-gcc               \
-         CFLAGS="-I${RDMA_NIC_DIR}/tests/app/rdma/include -I${RDMA_NIC_DIR}"     \
-         CXX=${RV64_GNU_INSTALL}/bin/riscv64-unknown-linux-musl-g++              \
-         CXXFLAGS="-I${RDMA_NIC_DIR}/tests/app/rdma/include -I${RDMA_NIC_DIR}"   \
-         LDFLAGS="-L${RDMA_LIB_DIR}"                                             \
+   ../configure                                                                        \
+         --prefix=${MVAPICH2_INSTALL_DIR}                                              \
+         --enable-fortran=no                                                           \
+         --with-device=ch3:rdma                                                        \
+         --enable-romio=no                                                             \
+         --enable-hybrid=no                                                            \
+         --enable-shared=no                                                            \
+         --enable-static=yes                                                           \
+         --with-pmi=vanadis                                                            \
+         --with-pm=none                                                                \
+         --enable-threads=single                                                       \
+         --enable-rsh=yes                                                              \
+         --host=riscv64-unknown-linux-musl                                             \
+         CC=${RV64_GNU_INSTALL}/bin/riscv64-unknown-linux-musl-gcc                     \
+         CFLAGS="-I${RDMA_NIC_DIR}/tests/app/rdma/include -I${RDMA_NIC_DIR} -fPIC"     \
+         CXX=${RV64_GNU_INSTALL}/bin/riscv64-unknown-linux-musl-g++                    \
+         CXXFLAGS="-I${RDMA_NIC_DIR}/tests/app/rdma/include -I${RDMA_NIC_DIR} -fPIC"   \
+         LDFLAGS="-L${RDMA_LIB_DIR}"                                                   \
          LIBS=-lrdma
 
    make -j8 install

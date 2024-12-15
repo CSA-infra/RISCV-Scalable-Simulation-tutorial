@@ -16,7 +16,7 @@ else:
 
 num_threads_per_cpu = 2
 num_cpu_per_node = 2
-app_args = "128 128 2"
+app_args = "64 64 4"
 
 cpu_clock = "3GHz"
 

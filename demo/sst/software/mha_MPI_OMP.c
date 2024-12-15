@@ -268,9 +268,10 @@ int main(int argc, char ** argv) {
    free(QKV);
    free(ATTNw);
    free(ATTNout);
+
    MPI_Finalize();
 
-   exit(EXIT_SUCCESS);
+   return 0;
 }
 
 static size_t get_element_size(data_type_e type) {
