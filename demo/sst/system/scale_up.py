@@ -1,22 +1,42 @@
+import sys
+import argparse
 import sst
 import os
-import sys
 from sst.merlin import *
 
 
-enableStats = True
-sst.setStatisticLoadLevel(10)
-if len(sys.argv) > 1:
-    sst.setStatisticOutput("sst.statOutputCSV",
-                       {   "filepath" : sys.argv[1],
+parser = argparse.ArgumentParser(
+   prog=f'sst {__file__} --',
+   formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+
+
+parser.add_argument("--num_threads_per_cpu", type=int, help="Number of hardware threads per cpu", default=2)
+parser.add_argument("--num_cpu_per_node", type=int, help="Number of cpu per node", default=2)
+parser.add_argument("--exe", type=str, help="Binary to run", default="../software/riscv64/mha_OMP_16")
+parser.add_argument("--app_args", type=str, help="Arguments of the application", default="64 64 4")
+parser.add_argument("--stats", type=str, help="write statistics, argument changes the filename", nargs="?", const="-")
+args = parser.parse_args()
+
+
+if args.stats:
+    enableStats = True
+    sst.setStatisticLoadLevel(10)
+
+    fname = args.stats
+    if fname.endswith(".csv"):
+        sst.setStatisticOutput("sst.statOutputCSV",
+                       {   "filepath" : fname,
                         "separator" : ";"
                         } )
+    else:
+        sst.setStatisticOutput("sst.statOutputConsole")
 else:
-    sst.setStatisticOutput("sst.statOutputConsole")
+    enableStats = False
 
-num_threads_per_cpu = 2
-num_cpu_per_node = 2
-app_args = "64 64 4"
+num_threads_per_cpu = args.num_threads_per_cpu
+num_cpu_per_node = args.num_cpu_per_node
+app_args = args.app_args
+full_exe_name = args.exe
 
 cpu_clock = "3GHz"
 
@@ -29,7 +49,6 @@ memsize = 4 * 1024**3 # 4GiB
 physMemSize = str(memsize) + " B"
 
 
-full_exe_name = "../software/riscv64/mha_OMP_16"
 exe_name= full_exe_name.split("/")[-1]
 
 tlbParams = {

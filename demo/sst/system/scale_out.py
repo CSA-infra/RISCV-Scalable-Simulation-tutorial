@@ -1,20 +1,38 @@
+import sys
+import argparse
 import sst
 import os
 from sst.merlin import *
 
-os_verbosity = 0
 
-enableStats = True
-sst.setStatisticLoadLevel(10)
-if len(sys.argv) > 1:
-    sst.setStatisticOutput("sst.statOutputCSV",
-                       {   "filepath" : sys.argv[1],
+parser = argparse.ArgumentParser(
+   prog=f'sst {__file__} --',
+   formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+
+
+parser.add_argument("--num_node_per_router", type=int, help="Number of nodes per router", default=2)
+parser.add_argument("--app_args", type=str, help="Arguments of the application", default="64 64 4")
+parser.add_argument("--stats", type=str, help="write statistics, argument changes the filename", nargs="?", const="-")
+args = parser.parse_args()
+
+
+if args.stats:
+    enableStats = True
+    sst.setStatisticLoadLevel(10)
+
+    fname = args.stats
+    if fname.endswith(".csv"):
+        sst.setStatisticOutput("sst.statOutputCSV",
+                       {   "filepath" : fname,
                         "separator" : ";"
                         } )
+    else:
+        sst.setStatisticOutput("sst.statOutputConsole")
 else:
-    sst.setStatisticOutput("sst.statOutputConsole")
+    enableStats = False
 
-num_node_per_router = 2
+
+num_node_per_router = args.num_node_per_router
 
 network_topology = "simple"
 
@@ -28,7 +46,8 @@ network_topology = "simple"
 
 num_threads_per_cpu = 1
 num_cpu_per_node = 1
-app_args = "64 64 4"
+app_args = args.app_args
+os_verbosity = 0
 
 cpu_clock = "3GHz"
 
@@ -111,6 +130,9 @@ else: # simple
             "router_radix" : num_node_per_router
             }
     num_node = num_node_per_router
+
+
+assert num_node > 1
 
 
 nodeRtrParams = {
