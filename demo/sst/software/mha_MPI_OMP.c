@@ -80,10 +80,6 @@ int main(int argc, char ** argv) {
    const int root = 0;
    int n_ranks, rank;
 
-#ifdef ASYNC
-   MPI_Request emb_req, Qw_req, Kw_req, Vw_req, attn_w_req;
-#endif
-
    MPI_Init(&argc, &argv);
    MPI_Comm_size(WORLD, &n_ranks);
    MPI_Comm_rank(WORLD, &rank);
@@ -114,7 +110,6 @@ int main(int argc, char ** argv) {
    MPI_Type_commit(&col);
    MPI_Type_create_resized(col, 0, dmodel/n_ranks*sizeof(data_t), &col_type);
    MPI_Type_commit(&col_type);
-
 
    assert(n_ranks <= h && (h % n_ranks) == 0);
 
@@ -154,13 +149,8 @@ int main(int argc, char ** argv) {
       init_random_tensor(ATTNw, data_type, dmodel*dmodel);
    }
 
-#ifdef ASYNC
-   MPI_Ibcast(embeddings, dmodel*S, mpi_data_type, root, WORLD, &emb_req);
-   MPI_Ibcast(ATTNw, dmodel*dmodel, mpi_data_type, root, WORLD, &attn_w_req);
-#else
    MPI_Bcast(embeddings, dmodel*S, mpi_data_type, root, WORLD);
    MPI_Bcast(ATTNw, dmodel*dmodel, mpi_data_type, root, WORLD);
-#endif
 
    if(rank == root) {
       Qw = calloc(dmodel*dmodel, sizeof(data_t));
@@ -177,15 +167,9 @@ int main(int argc, char ** argv) {
    Kw_heads = calloc(dmodel*dmodel/n_ranks, sizeof(data_t));
    Vw_heads = calloc(dmodel*dmodel/n_ranks, sizeof(data_t));
 
-#ifdef ASYNC
-   MPI_Iscatter(Qw, 1, col_type, Qw_heads, dmodel*dmodel/n_ranks, mpi_data_type, root, WORLD, &Qw_req);
-   MPI_Iscatter(Kw, 1, col_type, Kw_heads, dmodel*dmodel/n_ranks, mpi_data_type, root, WORLD, &Kw_req);
-   MPI_Iscatter(Vw, 1, col_type, Vw_heads, dmodel*dmodel/n_ranks, mpi_data_type, root, WORLD, &Vw_req);
-#else
    MPI_Scatter(Qw, 1, col_type, Qw_heads, dmodel*dmodel/n_ranks, mpi_data_type, root, WORLD);
    MPI_Scatter(Kw, 1, col_type, Kw_heads, dmodel*dmodel/n_ranks, mpi_data_type, root, WORLD);
    MPI_Scatter(Vw, 1, col_type, Vw_heads, dmodel*dmodel/n_ranks, mpi_data_type, root, WORLD);
-#endif
 
    Q = calloc(S*dmodel/n_ranks, sizeof(data_t));
    memset(Q, 0, S*dmodel*sizeof(data_t)/n_ranks);
@@ -207,14 +191,6 @@ int main(int argc, char ** argv) {
 
    ATTNout = calloc(S*dmodel, sizeof(data_t));
    memset(ATTNout, 0, S*dmodel*sizeof(data_t));
-
-#ifdef ASYNC
-   MPI_Wait(&emb_req, MPI_STATUS_IGNORE);
-   MPI_Wait(&Qw_req, MPI_STATUS_IGNORE);
-   MPI_Wait(&Kw_req, MPI_STATUS_IGNORE);
-   MPI_Wait(&Vw_req, MPI_STATUS_IGNORE);
-   MPI_Wait(&attn_w_req, MPI_STATUS_IGNORE);
-#endif
 
    clock_gettime(CLOCK_MONOTONIC, &end);
 
@@ -239,7 +215,6 @@ int main(int argc, char ** argv) {
    gemm(ATTNout, QKV, ATTNw, data_type, 1, S, dmodel, dmodel/n_ranks, dmodel, dmodel/n_ranks, dmodel);
 
    add(&ATTNout[S/n_ranks*rank*dmodel], &ATTNout[S/n_ranks*rank*dmodel], &embeddings[S/n_ranks*rank*dmodel], data_type, S/n_ranks, dmodel);
-
 
    MPI_Allreduce(ATTNout, embeddings, S*dmodel, mpi_data_type, MPI_SUM, WORLD);
 

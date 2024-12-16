@@ -77,7 +77,7 @@ tlbParams = {
 
 networkParams = {
         "packetSize" : "2048B",
-        "link_bw" : "50GB/s",
+        "link_bw" : "25GB/s",
         "xbar_bw" : "50GB/s",
 
         "link_lat" : "10ns",
@@ -90,7 +90,7 @@ networkParams = {
 }
 
 rdmaLinkParams = {
-        "link_bw" :"50GB/s",
+        "link_bw" :"25GB/s",
         "input_buf_size" : "14KB",
         "output_buf_size" : "14KB"
         }
@@ -136,8 +136,8 @@ assert num_node > 1
 
 
 nodeRtrParams = {
-        "xbar_bw" : "512GB/s",
-        "link_bw" : "400GB/s",
+        "xbar_bw" : "57.6GB/s",
+        "link_bw" : "28.8GB/s",
         "input_buf_size" : "40KB",
         "output_buf_size" : "40KB",
         "flit_size" : "72B",
@@ -152,10 +152,10 @@ memCtrlParams = {
         "initBacking" : 1,
         "addr_range_start" : 0x0,
         "addr_range_end" : memsize - 1,
-        "backendConvertor.request_width" : cache_line_size
+        "backendConvertor.request_width" : 16
         }
 
-# DRAM bandwidth = memCtrl.clock * cache_line_size * max_requests_per_cycle = 204.8 GB/s
+# DRAM bandwidth = memCtrl.clock * request width * max_requests_per_cycle = 25.6 GB/s
 memCtrlParams = {
         "clock" : "1.6GHz",
         "backend.mem_size" : physMemSize,
@@ -163,19 +163,19 @@ memCtrlParams = {
         "initBacking" : 1,
         "addr_range_start" : 0x0,
         "addr_range_end" : memsize - 1,
-        "backendConvertor.request_width" : cache_line_size
+        "backendConvertor.request_width" : 16
         }
 
 memBackendParams = {
         "mem_size" : physMemSize,
-        "access_time" : "25ns",
-        "max_requests_per_cycle" : 2,
-        "request_width" : cache_line_size
+        "access_time" : "20ns",
+        "max_requests_per_cycle" : 1,
+        "request_width" : 16
         }
 
 memNICParams = {
         "min_packet_size" : "72B",
-        "network_bw" : "400GB/s",
+        "network_bw" : "28.8GB/s",
         "network_input_buffer_size" : "4KiB",
         "network_output_buffer_size" : "4KiB"
         }
@@ -279,7 +279,7 @@ l1icacheParams = {
 
 l2cacheParams = {
         "access_latency_cycles" : 8,
-        "max_requests_per_cycle" : 8,
+        "max_requests_per_cycle" : 2,
         "cache_frequency" : cpu_clock,
         "replacement_policy" : "lru",
         "coherence_protocol" : coherence_protocol,
@@ -294,6 +294,7 @@ busParams = {
         }
 
 dirCtrlParams = {
+        "max_requests_per_cycle" : 2,
         "coherence_protocol" : coherence_protocol,
         "entry_cache_size" : l2cache_size*num_cpu_per_node/cache_line_size,
         "cache_line_size" : cache_line_size,
