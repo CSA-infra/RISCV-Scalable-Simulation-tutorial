@@ -11,7 +11,7 @@ parser = argparse.ArgumentParser(
 
 
 parser.add_argument("--num_node_per_router", type=int, help="Number of nodes per router", default=2)
-parser.add_argument("--app_args", type=str, help="Arguments of the application", default="64 64 4")
+parser.add_argument("--app_args", type=str, help="Arguments of the application", default="64 64 16")
 parser.add_argument("--stats", type=str, help="write statistics, argument changes the filename", nargs="?", const="-")
 args = parser.parse_args()
 
