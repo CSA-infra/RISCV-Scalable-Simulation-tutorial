@@ -221,9 +221,9 @@ int main(int argc, char ** argv) {
    clock_gettime(CLOCK_MONOTONIC, &end);
 
    time_elapsed_s = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1e9;
-   const uint64_t flop_count = 4*2*S*dmodel*dmodel/n_ranks +
-                               (1+h)*2*S*S*dmodel/n_ranks + h*S*S/n_ranks + 7*h*S*S/n_ranks + S*dmodel/n_ranks + S*dmodel;
-   printf("[rank: %d] MHA execution time: %.2f ms flop count per rank: %lu\n", rank, time_elapsed_s * 1000);
+   const uint64_t flop_count = S/n_ranks * (dmodel * (8*dmodel + 4*S + 1) + 8*h*S) + S*dmodel;
+
+   printf("[rank: %d] MHA execution time: %.2f ms flop count per rank: %lu\n", rank, time_elapsed_s * 1000, flop_count);
 
    if(rank == root) {
       free(Qw);
