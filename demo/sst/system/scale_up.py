@@ -13,7 +13,7 @@ parser = argparse.ArgumentParser(
 parser.add_argument("--num_threads_per_cpu", type=int, help="Number of hardware threads per cpu", default=2)
 parser.add_argument("--num_cpu_per_node", type=int, help="Number of cpu per node", default=2)
 parser.add_argument("--exe", type=str, help="Binary to run", default="../software/riscv64/mha_OMP_16")
-parser.add_argument("--app_args", type=str, help="Arguments of the application", default="64 64 4")
+parser.add_argument("--app_args", type=str, help="Arguments of the application", default="64 128 8")
 parser.add_argument("--stats", type=str, help="write statistics, argument changes the filename", nargs="?", const="-")
 args = parser.parse_args()
 
