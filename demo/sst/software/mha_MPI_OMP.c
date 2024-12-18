@@ -290,7 +290,7 @@ void init_random_tensor(void * tensor, data_type_e data_type, size_t nmemb) {
 
 static void gemm_impl(data_t * dst, const data_t * src1, const data_t * src2, int heads, int m, int n, int k,
       int stride_0, int stride_1, int stride_2) {
-   const int bsize = 16;
+   const int bsize = MIN(32,k);
    int ii0, ii1, ii2;
    int i0, i1, i2;
    int h;
