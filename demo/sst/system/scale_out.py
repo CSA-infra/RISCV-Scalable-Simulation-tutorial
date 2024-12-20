@@ -32,6 +32,7 @@ else:
     enableStats = False
 
 
+# Network topology definition start
 num_node_per_router = args.num_node_per_router
 
 network_topology = "simple"
@@ -43,6 +44,8 @@ network_topology = "simple"
 #network_topology = "fattree"
 #fattree_shape = "1,1:2,2"
 #fattree_shape = ':'.join([fattree_shape, str(num_node_per_router)])
+
+# Network topology definition end
 
 num_threads_per_cpu = 1
 num_cpu_per_node = 1
@@ -718,6 +721,7 @@ elif network_topology == "fattree":
 else:
     topo = topoSimple()
 
+topo.bundleEndpoints = False
 topo.prepParams()
 topo.setEndPointFunc( setNode )
 topo.build()

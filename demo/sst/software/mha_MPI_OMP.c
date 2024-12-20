@@ -104,14 +104,19 @@ int main(int argc, char ** argv) {
       exit(EXIT_FAILURE);
    }
 
-   fprintf(stdout, "Model n_ranks: %d, Sequence lenght: %d, head count: %d\n", dmodel, S, h);
+   if(n_ranks > h || (h % n_ranks) != 0) {
+      fprintf(stderr, "Error: the number of heads must be a multiple of the number of MPI \
+                       ranks and the number of heads must be equal or greater than the \
+                       number of ranks. (heads = %d, n_ranks=%s\n", h, n_ranks);
+      exit(EXIT_FAILURE);
+   }
+
+   fprintf(stdout, "Model dim: %d, Sequence lenght: %d, head count: %d\n", dmodel, S, h);
 
    MPI_Type_vector(dmodel, dmodel/n_ranks, dmodel, mpi_data_type, &col);
    MPI_Type_commit(&col);
    MPI_Type_create_resized(col, 0, dmodel/n_ranks*sizeof(data_t), &col_type);
    MPI_Type_commit(&col_type);
-
-   assert(n_ranks <= h && (h % n_ranks) == 0);
 
    data_t *embeddings = NULL;
    data_t * Qw = NULL;
