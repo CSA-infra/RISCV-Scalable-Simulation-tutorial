@@ -21,13 +21,13 @@ If you use this repository, please cite it as follows:
 ```
 
 ### Getting Started
-Build the documentation to get start with the two part tutorial. Minimum required version of python is 3.10
+Build the documentation to get start with the two-part tutorial. Minimum required version of python is 3.10. The tutorial has been tested on Linux based systems.
+
 ```
 python3 -m venv imec_tut_2025
 source imec_tut_2025/bin/activate
 pip3 install -r requirements.txt
 make html
 ```
-
 ### Need help?
 If you need help or clarification regarding any part of the tutorial, file an issue in the repository.
