@@ -1,0 +1,673 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Installation instructions for scale-out system simulation &mdash; VLSI Design Conference Tutorial 2025 0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=2709fde1"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="Application-oriented system modeling and optimization" href="gem5.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            VLSI Design Conference Tutorial 2025
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="gem5.html">Application-oriented system modeling and optimization</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Installation instructions for scale-out system simulation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#install-instructions-for-sst">Install instructions for SST</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#install-instructions-for-rv64-mpi-compiler">Install instructions for rv64 mpi compiler</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="#scale-out-system-simulation-with-sst">Scale-out system simulation with SST</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#environment-setup">Environment Setup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#context">Context</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#system-under-exploration">System under exploration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#workload-under-evaluation">Workload under evaluation</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#demo">DEMO</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#scale-up-system">Scale-up system</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#first-experiment-impact-of-tiling-dimension-on-performance">First experiment: Impact of tiling dimension on performance</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#second-experiment-scaling-evaluation">Second experiment: Scaling evaluation</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#scale-out-system">Scale-out system</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#first-experiment-changing-the-inter-node-network-topology">First experiment: Changing the inter-node network topology</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id2">Second experiment: Scaling evaluation</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#references">References</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">VLSI Design Conference Tutorial 2025</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Installation instructions for scale-out system simulation</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/sst.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="installation-instructions-for-scale-out-system-simulation">
+<span id="installation-instructions"></span><h1>Installation instructions for scale-out system simulation<a class="headerlink" href="#installation-instructions-for-scale-out-system-simulation" title="Link to this heading"></a></h1>
+<p>To run the demo on your side you need to install at least SST.
+The rv64 binaries are already compiled. However, if you want to compile new applications you must install the mpi compiler as described below.</p>
+<p>Run the following command to download the required sub-modules:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>submodule<span class="w"> </span>init<span class="w"> </span>--update
+</pre></div>
+</div>
+<section id="install-instructions-for-sst">
+<h2>Install instructions for SST<a class="headerlink" href="#install-instructions-for-sst" title="Link to this heading"></a></h2>
+<p>You must install <strong>SST-core</strong> SST. To do this, run the following commands in a terminal:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>sst/sst-core
+<span class="nb">export</span><span class="w"> </span><span class="nv">SST_CORE_HOME</span><span class="o">=</span><span class="k">$(</span><span class="nb">pwd</span><span class="k">)</span>/install
+./autogen.sh
+mkdir<span class="w"> </span>build
+<span class="nb">cd</span><span class="w"> </span>build
+../configure<span class="w"> </span>--prefix<span class="o">=</span><span class="nv">$SST_CORE_HOME</span>
+make<span class="w"> </span>-j<span class="w"> </span>all
+make<span class="w"> </span>install
+<span class="nb">export</span><span class="w"> </span><span class="nv">PATH</span><span class="o">=</span><span class="nv">$SST_CORE_HOME</span>/bin:<span class="nv">$PATH</span>
+<span class="nb">cd</span><span class="w"> </span>../../../
+</pre></div>
+</div>
+<p>Then, you can install <strong>SST-elements</strong> as follow:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>sst/sst-elements
+git<span class="w"> </span>apply<span class="w"> </span>../sst-elements.patch
+<span class="nb">export</span><span class="w"> </span><span class="nv">SST_ELEMENTS_HOME</span><span class="o">=</span><span class="k">$(</span><span class="nb">pwd</span><span class="k">)</span>/install
+./autogen.sh
+mkdir<span class="w"> </span>build
+<span class="nb">cd</span><span class="w"> </span>build
+../configure<span class="w"> </span>--prefix<span class="o">=</span><span class="nv">$SST_ELEMENTS_HOME</span><span class="w"> </span>--with-sst-core<span class="o">=</span><span class="nv">$SST_CORE_HOME</span>
+make<span class="w"> </span>-j<span class="w"> </span>all
+make<span class="w"> </span>install
+<span class="nb">cd</span><span class="w"> </span>../../../
+</pre></div>
+</div>
+</section>
+<section id="install-instructions-for-rv64-mpi-compiler">
+<h2>Install instructions for rv64 mpi compiler<a class="headerlink" href="#install-instructions-for-rv64-mpi-compiler" title="Link to this heading"></a></h2>
+<p>The first step is to install <strong>riscv64-unknown-linux-musl-gcc</strong>. To do this, run the following commands in a terminal:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>riscv-gnu-toolchain
+<span class="nb">export</span><span class="w"> </span><span class="nv">RV64_GNU_INSTALL</span><span class="o">=</span><span class="k">$(</span><span class="nb">pwd</span><span class="k">)</span>/install
+<span class="nv">CFLAGS</span><span class="o">=</span><span class="s2">&quot;-O3 -fPIC&quot;</span><span class="w"> </span><span class="nv">CXXFLAGS</span><span class="o">=</span><span class="s2">&quot;-O3 -fPIC&quot;</span><span class="w"> </span>./configure<span class="w"> </span>--prefix<span class="o">=</span><span class="nv">$RV64_GNU_INSTALL</span><span class="w"> </span>--disable-multilib<span class="w"> </span>--with-languages<span class="o">=</span>c,c++
+make<span class="w"> </span>-j8<span class="w"> </span>musl
+</pre></div>
+</div>
+<p>Then, you must build the RDMA library</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>sst/libRDMA
+make
+</pre></div>
+</div>
+<p>Finally, you can build and install <strong>mpicc</strong> as follow:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">export</span><span class="w"> </span><span class="nv">RDMA_NIC_DIR</span><span class="o">=</span><span class="k">$(</span>realpath<span class="w"> </span>./sst/sst-elements/src/sst/elements/rdmaNic<span class="k">)</span>
+<span class="nb">export</span><span class="w"> </span><span class="nv">RDMA_LIB_DIR</span><span class="o">=</span><span class="k">$(</span>realpath<span class="w"> </span>./sst/libRDMA/riscv64/<span class="k">)</span>
+
+tar<span class="w"> </span>xzvf<span class="w"> </span>mvapich2-2.3.7-1.tar.gz
+<span class="nb">ulimit</span><span class="w"> </span>-n<span class="w"> </span><span class="m">4096</span>
+patch<span class="w"> </span>--directory<span class="o">=</span>mvapich2-2.3.7-1/<span class="w"> </span>-p1<span class="w"> </span>&lt;<span class="w"> </span>mvapich2-2.3.7-1.patch
+
+<span class="nb">cd</span><span class="w"> </span>mvapich2-2.3.7-1/
+./autogen.sh
+
+mkdir<span class="w"> </span>install
+mkdir<span class="w"> </span>build
+
+<span class="nb">export</span><span class="w"> </span><span class="nv">MVAPICH2_INSTALL_DIR</span><span class="o">=</span><span class="k">$(</span><span class="nb">pwd</span><span class="k">)</span>/install
+
+<span class="nb">cd</span><span class="w"> </span>build
+
+../configure<span class="w">                                                                        </span><span class="se">\</span>
+<span class="w">      </span>--prefix<span class="o">=</span><span class="si">${</span><span class="nv">MVAPICH2_INSTALL_DIR</span><span class="si">}</span><span class="w">                                              </span><span class="se">\</span>
+<span class="w">      </span>--enable-fortran<span class="o">=</span>no<span class="w">                                                           </span><span class="se">\</span>
+<span class="w">      </span>--with-device<span class="o">=</span>ch3:rdma<span class="w">                                                        </span><span class="se">\</span>
+<span class="w">      </span>--enable-romio<span class="o">=</span>no<span class="w">                                                             </span><span class="se">\</span>
+<span class="w">      </span>--enable-hybrid<span class="o">=</span>no<span class="w">                                                            </span><span class="se">\</span>
+<span class="w">      </span>--enable-shared<span class="o">=</span>no<span class="w">                                                            </span><span class="se">\</span>
+<span class="w">      </span>--enable-static<span class="o">=</span>yes<span class="w">                                                           </span><span class="se">\</span>
+<span class="w">      </span>--with-pmi<span class="o">=</span>vanadis<span class="w">                                                            </span><span class="se">\</span>
+<span class="w">      </span>--with-pm<span class="o">=</span>none<span class="w">                                                                </span><span class="se">\</span>
+<span class="w">      </span>--enable-threads<span class="o">=</span>single<span class="w">                                                       </span><span class="se">\</span>
+<span class="w">      </span>--enable-rsh<span class="o">=</span>yes<span class="w">                                                              </span><span class="se">\</span>
+<span class="w">      </span>--host<span class="o">=</span>riscv64-unknown-linux-musl<span class="w">                                             </span><span class="se">\</span>
+<span class="w">      </span><span class="nv">CC</span><span class="o">=</span><span class="si">${</span><span class="nv">RV64_GNU_INSTALL</span><span class="si">}</span>/bin/riscv64-unknown-linux-musl-gcc<span class="w">                     </span><span class="se">\</span>
+<span class="w">      </span><span class="nv">CFLAGS</span><span class="o">=</span><span class="s2">&quot;-I</span><span class="si">${</span><span class="nv">RDMA_NIC_DIR</span><span class="si">}</span><span class="s2">/tests/app/rdma/include -I</span><span class="si">${</span><span class="nv">RDMA_NIC_DIR</span><span class="si">}</span><span class="s2"> -fPIC&quot;</span><span class="w">     </span><span class="se">\</span>
+<span class="w">      </span><span class="nv">CXX</span><span class="o">=</span><span class="si">${</span><span class="nv">RV64_GNU_INSTALL</span><span class="si">}</span>/bin/riscv64-unknown-linux-musl-g++<span class="w">                    </span><span class="se">\</span>
+<span class="w">      </span><span class="nv">CXXFLAGS</span><span class="o">=</span><span class="s2">&quot;-I</span><span class="si">${</span><span class="nv">RDMA_NIC_DIR</span><span class="si">}</span><span class="s2">/tests/app/rdma/include -I</span><span class="si">${</span><span class="nv">RDMA_NIC_DIR</span><span class="si">}</span><span class="s2"> -fPIC&quot;</span><span class="w">   </span><span class="se">\</span>
+<span class="w">      </span><span class="nv">LDFLAGS</span><span class="o">=</span><span class="s2">&quot;-L</span><span class="si">${</span><span class="nv">RDMA_LIB_DIR</span><span class="si">}</span><span class="s2">&quot;</span><span class="w">                                                   </span><span class="se">\</span>
+<span class="w">      </span><span class="nv">LIBS</span><span class="o">=</span>-lrdma
+
+make<span class="w"> </span>-j8<span class="w"> </span>install
+</pre></div>
+</div>
+</section>
+</section>
+<section id="scale-out-system-simulation-with-sst">
+<h1>Scale-out system simulation with SST<a class="headerlink" href="#scale-out-system-simulation-with-sst" title="Link to this heading"></a></h1>
+<p><strong>How to perform a scale-out system simulation with cycle-approximate accuracy?</strong>
+The goal of the second part of this tutorial is to introduce the Structural Simulation
+Toolkit (SST) framework which allows to simulate a scale-out system with a
+cycle-approximate accuracy.</p>
+<section id="environment-setup">
+<h2>Environment Setup<a class="headerlink" href="#environment-setup" title="Link to this heading"></a></h2>
+<p>To run the SST experiments you need to install SST. Please refer to <a class="reference internal" href="#installation-instructions">Installation instructions</a>.</p>
+</section>
+<section id="context">
+<h2>Context<a class="headerlink" href="#context" title="Link to this heading"></a></h2>
+<section id="system-under-exploration">
+<h3>System under exploration<a class="headerlink" href="#system-under-exploration" title="Link to this heading"></a></h3>
+<figure class="align-center" id="id5">
+<span id="cpu-figure"></span><a class="reference internal image-reference" href="_images/cpu.svg"><img alt="_images/cpu.svg" src="_images/cpu.svg" style="width: 400px;" />
+</a>
+<figcaption>
+<p><span class="caption-number">Fig. 1 </span><span class="caption-text">Microarchitecture of a cpu core.</span><a class="headerlink" href="#id5" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<p>The system under exploration is made up of multi-threaded RISC-V CPU cores. As illustrated
+in Figure <a class="reference internal" href="#cpu-figure"><span class="std std-numref">Fig. 1</span></a>, a CPU core is attached to an L1 data cache and an L1
+instruction cache. The two caches are interconnect to a second level of cache (L2 cache)
+with a memory bus. The core itself is composed of one decoder for each thread, one branch
+unit and one dispatch unit, one register file for floating point numbers and another one
+for integers, a load store unit (or load store queue), multiple ALU and multiple FPU. The
+core is attached to each cache through a TLB and a memory interface. TLBs are managed by
+the operating system.</p>
+<figure class="align-center" id="id6">
+<span id="node-figure"></span><a class="reference internal image-reference" href="_images/node.svg"><img alt="_images/node.svg" src="_images/node.svg" style="width: 600px;" />
+</a>
+<figcaption>
+<p><span class="caption-number">Fig. 2 </span><span class="caption-text">Microarchitecture of a compute node.</span><a class="headerlink" href="#id6" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<p>As shown in Figure <a class="reference internal" href="#node-figure"><span class="std std-numref">Fig. 2</span></a>, the RISC-V cores are integrated into a compute
+node. The number of cores per node is configurable from the script. The set of L2 caches
+are federated with a directory which maintains coherency in the node. The L2s and the
+directory are interconnected through a NoC. The directory is attached to a DRAM
+controller. In addition, a node integrates a component that emulates an operating systems.
+The latter manages the virtual memory and is attached to every CPU core to provide the
+minimal service required to run applications.</p>
+<figure class="align-center" id="id7">
+<span id="system-figure"></span><a class="reference internal image-reference" href="_images/system.svg"><img alt="Scale-out system microarchitecture" src="_images/system.svg" style="width: 800px;" />
+</a>
+<figcaption>
+<p><span class="caption-number">Fig. 3 </span><span class="caption-text">Microarchitecture of a multi-node system.</span><a class="headerlink" href="#id7" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<p>Multi-node can be interconnect with a network to build a scale-out system, as illustrated
+in Figure <a class="reference internal" href="#system-figure"><span class="std std-numref">Fig. 3</span></a>. Each node has an independent operating system and a
+private memory space. To allow communication between node, we can use
+Message Passing Interface (MPI). To do that, each node integrates a NIC in addition. The
+latter is interconnected to the NoC.</p>
+<p>The inter-node network is built with pymerlin (a python script provided in SST-elements).
+Thanks to that script we can defined different topologies easily (e.g., single router, fat
+tree, dragonfly, torus, mesh, torus, etc).</p>
+<p>Every components or sub-components are configurable, for instance you can configure the
+latency of the ALU or the capacity of each cache. You can find more information on the
+parameters and their impact on the simulated system using <strong>sst-info</strong> command.</p>
+<table class="docutils align-default" id="id8">
+<caption><span class="caption-number">Table 1 </span><span class="caption-text">How to find the available parameters</span><a class="headerlink" href="#id8" title="Link to this table"></a></caption>
+<colgroup>
+<col style="width: 33.3%" />
+<col style="width: 66.7%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Command</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>sst-info vanadis</p></td>
+<td><p>Parameters of the cpu core and the operating system</p></td>
+</tr>
+<tr class="row-odd"><td><p>sst-info mmu</p></td>
+<td><p>Parameters of the TBL and MMU</p></td>
+</tr>
+<tr class="row-even"><td><p>sst-info sst-info memHierarchy</p></td>
+<td><p>Parameters of the cache, directory controller, DRAM, memory bus</p></td>
+</tr>
+<tr class="row-odd"><td><p>sst-info merlin</p></td>
+<td><p>Parameters of the NoC and internode network components</p></td>
+</tr>
+<tr class="row-even"><td><p>sst-info sst-info rdmaNic</p></td>
+<td><p>Parameters of the NIC</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="workload-under-evaluation">
+<h3>Workload under evaluation<a class="headerlink" href="#workload-under-evaluation" title="Link to this heading"></a></h3>
+<p>The workload under evaluation is inspired by a Multi-head attention, one of the
+calculation layers of transformers <span id="id1">[<a class="reference internal" href="#id4" title="Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan N. Gomez, Lukasz Kaiser, and Illia Polosukhin. Attention is all you need. CoRR, 2017. URL: http://arxiv.org/abs/1706.03762, arXiv:1706.03762.">VSP+17</a>]</span>.</p>
+<figure class="align-center" id="id9">
+<span id="omp-mha-figure"></span><a class="reference internal image-reference" href="_images/mha.svg"><img alt="Multi-head attention block" src="_images/mha.svg" style="width: 600px;" />
+</a>
+<figcaption>
+<p><span class="caption-number">Fig. 4 </span><span class="caption-text">Illustration of the workload run on a single-node system.</span><a class="headerlink" href="#id9" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<p>As shown in Figure <a class="reference internal" href="#omp-mha-figure"><span class="std std-numref">Fig. 4</span></a>, the application multiplies an <em>Embeddings</em>
+matrix of Seq<sub>len</sub>x D<sub>model</sub> elements with 3 matrices of
+D<sub>model</sub> x D<sub>model</sub> weights, producing 3 matrices of  Seq<sub>len</sub>x D<sub>model</sub> elements,
+called Keys, Queries and Values. In fact, the weight matrices are divided into <em>heads</em>.
+Each head of Queries matrix are multiplied with the corresponding transposed head of Keys
+matrix, producing <em>QK</em> matrix. The latter is then scaled. Then the <em>softmax</em> of each row of
+the scaled <em>QK</em> is computed. Afterward, the result of the <em>softmax</em> is multiplied with
+Values matrix, producing <em>QKV</em> matrix. Finally, <em>QKV</em> is summed with the <em>Embeddings</em>
+matrix.</p>
+<p>The corresponding code is implemented in <strong>C</strong> <a class="reference external" href="../../demo/sst/software/mha_OMP.c">mha_OMP</a>, and is parallelized with <strong>OpenMP</strong>.</p>
+<p>Matrix-Matrix multiplication is the heaviest workload in this application. To minimize the
+data movement, a tiled GEMM is implemented. <em>TILE_SIZE</em> macro defines the dimension of the
+tiles.</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="hll"><span class="linenos"> 1</span><span class="k">const</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">bsize</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TILE_SIZE</span><span class="p">;</span>
+</span><span class="linenos"> 2</span><span class="kt">int</span><span class="w"> </span><span class="n">ii0</span><span class="p">,</span><span class="w"> </span><span class="n">ii1</span><span class="p">,</span><span class="w"> </span><span class="n">ii2</span><span class="p">;</span>
+<span class="linenos"> 3</span><span class="kt">int</span><span class="w"> </span><span class="n">i0</span><span class="p">,</span><span class="w"> </span><span class="n">i1</span><span class="p">,</span><span class="w"> </span><span class="n">i2</span><span class="p">;</span>
+<span class="linenos"> 4</span><span class="kt">int</span><span class="w"> </span><span class="n">h</span><span class="p">;</span>
+<span class="linenos"> 5</span><span class="kt">int</span><span class="w"> </span><span class="n">start_head</span><span class="p">,</span><span class="w"> </span><span class="n">stop_head</span><span class="p">;</span>
+<span class="linenos"> 6</span><span class="n">data_t</span><span class="w"> </span><span class="n">pp</span><span class="p">;</span>
+<span class="linenos"> 7</span><span class="cp">#pragma omp parallel for shared (dst, src1, src2) private(h,i0,i1,i2,ii0,ii1,ii2,pp) collapse(2)</span>
+<span class="linenos"> 8</span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">h</span><span class="o">=</span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">h</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">heads</span><span class="p">;</span><span class="w"> </span><span class="n">h</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos"> 9</span><span class="w">   </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">ii0</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">ii0</span><span class="o">&lt;</span><span class="n">m</span><span class="p">;</span><span class="w"> </span><span class="n">ii0</span><span class="o">+=</span><span class="n">bsize</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">10</span><span class="w">      </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">ii1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">h</span><span class="o">*</span><span class="n">n</span><span class="p">;</span><span class="w"> </span><span class="n">ii1</span><span class="o">&lt;</span><span class="p">((</span><span class="n">h</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="n">n</span><span class="p">);</span><span class="w"> </span><span class="n">ii1</span><span class="o">+=</span><span class="n">bsize</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">11</span><span class="w">         </span><span class="k">for</span><span class="p">(</span><span class="n">ii2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">ii2</span><span class="o">&lt;</span><span class="n">k</span><span class="p">;</span><span class="w"> </span><span class="n">ii2</span><span class="o">+=</span><span class="n">bsize</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">12</span><span class="w">            </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">i0</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ii0</span><span class="p">;</span><span class="w"> </span><span class="n">i0</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">MIN</span><span class="p">(</span><span class="n">ii0</span><span class="o">+</span><span class="n">bsize</span><span class="p">,</span><span class="n">m</span><span class="p">);</span><span class="w"> </span><span class="n">i0</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">13</span><span class="w">               </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">i1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ii1</span><span class="p">;</span><span class="w"> </span><span class="n">i1</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">MIN</span><span class="p">(</span><span class="n">ii1</span><span class="o">+</span><span class="n">bsize</span><span class="p">,((</span><span class="n">h</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="n">n</span><span class="p">));</span><span class="w"> </span><span class="n">i1</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">14</span><span class="w">                  </span><span class="n">pp</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="linenos">15</span><span class="w">                  </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">i2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ii2</span><span class="p">;</span><span class="w"> </span><span class="n">i2</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">MIN</span><span class="p">(</span><span class="n">ii2</span><span class="o">+</span><span class="n">bsize</span><span class="p">,</span><span class="n">k</span><span class="p">);</span><span class="w"> </span><span class="n">i2</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">16</span><span class="w">                     </span><span class="n">pp</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">src1</span><span class="p">[(</span><span class="n">i0</span><span class="o">+</span><span class="n">h</span><span class="o">*</span><span class="n">m</span><span class="p">)</span><span class="o">*</span><span class="p">(</span><span class="n">stride_1</span><span class="p">)</span><span class="o">+</span><span class="n">i2</span><span class="p">]</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">src2</span><span class="p">[</span><span class="n">i2</span><span class="o">*</span><span class="n">stride_2</span><span class="o">+</span><span class="n">i1</span><span class="p">];</span>
+<span class="linenos">17</span><span class="w">                  </span><span class="p">}</span>
+<span class="linenos">18</span><span class="w">                  </span><span class="n">dst</span><span class="p">[</span><span class="n">i0</span><span class="o">*</span><span class="p">(</span><span class="n">stride_0</span><span class="p">)</span><span class="o">+</span><span class="n">i1</span><span class="p">]</span><span class="o">+=</span><span class="w"> </span><span class="n">pp</span><span class="p">;</span>
+<span class="linenos">19</span><span class="w">               </span><span class="p">}</span>
+<span class="linenos">20</span><span class="w">            </span><span class="p">}</span>
+<span class="linenos">21</span><span class="w">         </span><span class="p">}</span>
+<span class="linenos">22</span><span class="w">      </span><span class="p">}</span>
+<span class="linenos">23</span><span class="w">   </span><span class="p">}</span>
+<span class="linenos">24</span><span class="p">}</span>
+</pre></div>
+</div>
+<figure class="align-center" id="id10">
+<span id="omp-mpi-mha-figure"></span><a class="reference internal image-reference" href="_images/mha_mpi.svg"><img alt="Multi-head attention block" src="_images/mha_mpi.svg" style="width: 600px;" />
+</a>
+<figcaption>
+<p><span class="caption-number">Fig. 5 </span><span class="caption-text">Illustration of the workload run on a multi-node system.</span><a class="headerlink" href="#id10" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<p>As the <em>heads</em> can be processed independently until the addition, the workload can be
+easily parallelized on a distributed memory system. As illustrated in Figure <a class="reference internal" href="#omp-mpi-mha-figure"><span class="std std-numref">Fig. 5</span></a>,
+running the workload on a multi-node system requires only a few extra steps.
+The corresponding application is implemented with MPI to handle the communication between
+the nodes and OpenMP to parallelize the kernels within a node. The code is written in
+<strong>C</strong> as well <a class="reference external" href="../../demo/sst/software/mha_MPI_OMP.c">mha_mpi_OMP</a></p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="n">MPI_Init</span><span class="p">(</span><span class="o">&amp;</span><span class="n">argc</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">argv</span><span class="p">);</span>
+<span class="linenos"> 2</span><span class="n">MPI_Comm_size</span><span class="p">(</span><span class="n">WORLD</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">n_ranks</span><span class="p">);</span>
+<span class="linenos"> 3</span><span class="n">MPI_Comm_rank</span><span class="p">(</span><span class="n">WORLD</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">rank</span><span class="p">);</span>
+<span class="linenos"> 4</span><span class="n">MPI_Datatype</span><span class="w"> </span><span class="n">col</span><span class="p">,</span><span class="w"> </span><span class="n">col_type</span><span class="p">;</span>
+<span class="linenos"> 5</span>
+<span class="linenos"> 6</span><span class="cm">/*</span>
+<span class="linenos"> 7</span><span class="cm"> ...</span>
+<span class="linenos"> 8</span><span class="cm"> */</span>
+<span class="linenos"> 9</span>
+<span class="linenos">10</span><span class="n">MPI_Type_vector</span><span class="p">(</span><span class="n">dmodel</span><span class="p">,</span><span class="w"> </span><span class="n">dmodel</span><span class="o">/</span><span class="n">n_ranks</span><span class="p">,</span><span class="w"> </span><span class="n">dmodel</span><span class="p">,</span><span class="w"> </span><span class="n">mpi_data_type</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">col</span><span class="p">);</span>
+<span class="linenos">11</span><span class="n">MPI_Type_commit</span><span class="p">(</span><span class="o">&amp;</span><span class="n">col</span><span class="p">);</span>
+<span class="linenos">12</span><span class="n">MPI_Type_create_resized</span><span class="p">(</span><span class="n">col</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">dmodel</span><span class="o">/</span><span class="n">n_ranks</span><span class="o">*</span><span class="k">sizeof</span><span class="p">(</span><span class="n">data_t</span><span class="p">),</span><span class="w"> </span><span class="o">&amp;</span><span class="n">col_type</span><span class="p">);</span>
+<span class="linenos">13</span><span class="n">MPI_Type_commit</span><span class="p">(</span><span class="o">&amp;</span><span class="n">col_type</span><span class="p">);</span>
+<span class="linenos">14</span>
+<span class="linenos">15</span><span class="cm">/*</span>
+<span class="linenos">16</span><span class="cm"> ...</span>
+<span class="linenos">17</span><span class="cm"> */</span>
+<span class="linenos">18</span>
+<span class="linenos">19</span><span class="k">if</span><span class="p">(</span><span class="n">rank</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">root</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">20</span><span class="w">   </span><span class="n">init_random_tensor</span><span class="p">(</span><span class="n">embeddings</span><span class="p">,</span><span class="w"> </span><span class="n">data_type</span><span class="p">,</span><span class="w"> </span><span class="n">dmodel</span><span class="o">*</span><span class="n">S</span><span class="p">);</span>
+<span class="linenos">21</span><span class="w">   </span><span class="n">init_random_tensor</span><span class="p">(</span><span class="n">ATTNw</span><span class="p">,</span><span class="w"> </span><span class="n">data_type</span><span class="p">,</span><span class="w"> </span><span class="n">dmodel</span><span class="o">*</span><span class="n">dmodel</span><span class="p">);</span>
+<span class="linenos">22</span><span class="p">}</span>
+<span class="linenos">23</span>
+<span class="hll"><span class="linenos">24</span><span class="n">MPI_Bcast</span><span class="p">(</span><span class="n">embeddings</span><span class="p">,</span><span class="w"> </span><span class="n">dmodel</span><span class="o">*</span><span class="n">S</span><span class="p">,</span><span class="w"> </span><span class="n">mpi_data_type</span><span class="p">,</span><span class="w"> </span><span class="n">root</span><span class="p">,</span><span class="w"> </span><span class="n">WORLD</span><span class="p">);</span>
+</span><span class="hll"><span class="linenos">25</span><span class="n">MPI_Bcast</span><span class="p">(</span><span class="n">ATTNw</span><span class="p">,</span><span class="w"> </span><span class="n">dmodel</span><span class="o">*</span><span class="n">dmodel</span><span class="p">,</span><span class="w"> </span><span class="n">mpi_data_type</span><span class="p">,</span><span class="w"> </span><span class="n">root</span><span class="p">,</span><span class="w"> </span><span class="n">WORLD</span><span class="p">);</span>
+</span><span class="linenos">26</span>
+<span class="linenos">27</span><span class="k">if</span><span class="p">(</span><span class="n">rank</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">root</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">28</span><span class="w">   </span><span class="n">Qw</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">calloc</span><span class="p">(</span><span class="n">dmodel</span><span class="o">*</span><span class="n">dmodel</span><span class="p">,</span><span class="w"> </span><span class="k">sizeof</span><span class="p">(</span><span class="n">data_t</span><span class="p">));</span>
+<span class="linenos">29</span><span class="w">   </span><span class="n">init_random_tensor</span><span class="p">(</span><span class="n">Qw</span><span class="p">,</span><span class="w"> </span><span class="n">data_type</span><span class="p">,</span><span class="w"> </span><span class="n">dmodel</span><span class="o">*</span><span class="n">dmodel</span><span class="p">);</span>
+<span class="linenos">30</span>
+<span class="linenos">31</span><span class="w">   </span><span class="n">Kw</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">calloc</span><span class="p">(</span><span class="n">dmodel</span><span class="o">*</span><span class="n">dmodel</span><span class="p">,</span><span class="w"> </span><span class="k">sizeof</span><span class="p">(</span><span class="n">data_t</span><span class="p">));</span>
+<span class="linenos">32</span><span class="w">   </span><span class="n">init_random_tensor</span><span class="p">(</span><span class="n">Kw</span><span class="p">,</span><span class="w"> </span><span class="n">data_type</span><span class="p">,</span><span class="w"> </span><span class="n">dmodel</span><span class="o">*</span><span class="n">dmodel</span><span class="p">);</span>
+<span class="linenos">33</span>
+<span class="linenos">34</span><span class="w">   </span><span class="n">Vw</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">calloc</span><span class="p">(</span><span class="n">dmodel</span><span class="o">*</span><span class="n">dmodel</span><span class="p">,</span><span class="w"> </span><span class="k">sizeof</span><span class="p">(</span><span class="n">data_t</span><span class="p">));</span>
+<span class="linenos">35</span><span class="w">   </span><span class="n">init_random_tensor</span><span class="p">(</span><span class="n">Vw</span><span class="p">,</span><span class="w"> </span><span class="n">data_type</span><span class="p">,</span><span class="w"> </span><span class="n">dmodel</span><span class="o">*</span><span class="n">dmodel</span><span class="p">);</span>
+<span class="linenos">36</span><span class="p">}</span>
+<span class="linenos">37</span>
+<span class="hll"><span class="linenos">38</span><span class="n">MPI_Scatter</span><span class="p">(</span><span class="n">Qw</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="n">col_type</span><span class="p">,</span><span class="w"> </span><span class="n">Qw_heads</span><span class="p">,</span><span class="w"> </span><span class="n">dmodel</span><span class="o">*</span><span class="n">dmodel</span><span class="o">/</span><span class="n">n_ranks</span><span class="p">,</span><span class="w"> </span><span class="n">mpi_data_type</span><span class="p">,</span><span class="w"> </span><span class="n">root</span><span class="p">,</span><span class="w"> </span><span class="n">WORLD</span><span class="p">);</span>
+</span><span class="hll"><span class="linenos">39</span><span class="n">MPI_Scatter</span><span class="p">(</span><span class="n">Kw</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="n">col_type</span><span class="p">,</span><span class="w"> </span><span class="n">Kw_heads</span><span class="p">,</span><span class="w"> </span><span class="n">dmodel</span><span class="o">*</span><span class="n">dmodel</span><span class="o">/</span><span class="n">n_ranks</span><span class="p">,</span><span class="w"> </span><span class="n">mpi_data_type</span><span class="p">,</span><span class="w"> </span><span class="n">root</span><span class="p">,</span><span class="w"> </span><span class="n">WORLD</span><span class="p">);</span>
+</span><span class="hll"><span class="linenos">40</span><span class="n">MPI_Scatter</span><span class="p">(</span><span class="n">Vw</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="n">col_type</span><span class="p">,</span><span class="w"> </span><span class="n">Vw_heads</span><span class="p">,</span><span class="w"> </span><span class="n">dmodel</span><span class="o">*</span><span class="n">dmodel</span><span class="o">/</span><span class="n">n_ranks</span><span class="p">,</span><span class="w"> </span><span class="n">mpi_data_type</span><span class="p">,</span><span class="w"> </span><span class="n">root</span><span class="p">,</span><span class="w"> </span><span class="n">WORLD</span><span class="p">);</span>
+</span><span class="linenos">41</span>
+<span class="linenos">42</span><span class="cm">/*</span>
+<span class="linenos">43</span><span class="cm"> ...</span>
+<span class="linenos">44</span><span class="cm"> */</span>
+<span class="linenos">45</span>
+<span class="linenos">46</span><span class="cm">/* MHA */</span>
+<span class="linenos">47</span>
+<span class="linenos">48</span><span class="n">gemm</span><span class="p">(</span><span class="n">Q</span><span class="p">,</span><span class="w"> </span><span class="n">embeddings</span><span class="p">,</span><span class="w"> </span><span class="n">Qw_heads</span><span class="p">,</span><span class="w"> </span><span class="n">data_type</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="n">S</span><span class="p">,</span><span class="w"> </span><span class="n">dmodel</span><span class="o">/</span><span class="n">n_ranks</span><span class="p">,</span><span class="w"> </span><span class="n">dmodel</span><span class="p">,</span><span class="w"> </span><span class="n">dmodel</span><span class="o">/</span><span class="n">n_ranks</span><span class="p">,</span><span class="w"> </span><span class="n">dmodel</span><span class="p">,</span><span class="w"> </span><span class="n">dmodel</span><span class="o">/</span><span class="n">n_ranks</span><span class="p">);</span>
+<span class="linenos">49</span><span class="n">gemm</span><span class="p">(</span><span class="n">K</span><span class="p">,</span><span class="w"> </span><span class="n">embeddings</span><span class="p">,</span><span class="w"> </span><span class="n">Kw_heads</span><span class="p">,</span><span class="w"> </span><span class="n">data_type</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="n">S</span><span class="p">,</span><span class="w"> </span><span class="n">dmodel</span><span class="o">/</span><span class="n">n_ranks</span><span class="p">,</span><span class="w"> </span><span class="n">dmodel</span><span class="p">,</span><span class="w"> </span><span class="n">dmodel</span><span class="o">/</span><span class="n">n_ranks</span><span class="p">,</span><span class="w"> </span><span class="n">dmodel</span><span class="p">,</span><span class="w"> </span><span class="n">dmodel</span><span class="o">/</span><span class="n">n_ranks</span><span class="p">);</span>
+<span class="linenos">50</span><span class="n">gemm</span><span class="p">(</span><span class="n">V</span><span class="p">,</span><span class="w"> </span><span class="n">embeddings</span><span class="p">,</span><span class="w"> </span><span class="n">Vw_heads</span><span class="p">,</span><span class="w"> </span><span class="n">data_type</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="n">S</span><span class="p">,</span><span class="w"> </span><span class="n">dmodel</span><span class="o">/</span><span class="n">n_ranks</span><span class="p">,</span><span class="w"> </span><span class="n">dmodel</span><span class="p">,</span><span class="w"> </span><span class="n">dmodel</span><span class="o">/</span><span class="n">n_ranks</span><span class="p">,</span><span class="w"> </span><span class="n">dmodel</span><span class="p">,</span><span class="w"> </span><span class="n">dmodel</span><span class="o">/</span><span class="n">n_ranks</span><span class="p">);</span>
+<span class="linenos">51</span>
+<span class="linenos">52</span><span class="n">gemm_t</span><span class="p">(</span><span class="n">KQ</span><span class="p">,</span><span class="w"> </span><span class="n">Q</span><span class="p">,</span><span class="w"> </span><span class="n">K</span><span class="p">,</span><span class="w"> </span><span class="n">data_type</span><span class="p">,</span><span class="w"> </span><span class="n">h</span><span class="o">/</span><span class="n">n_ranks</span><span class="p">,</span><span class="w"> </span><span class="n">S</span><span class="p">,</span><span class="w"> </span><span class="n">S</span><span class="p">,</span><span class="w"> </span><span class="n">dmodel</span><span class="o">/</span><span class="n">h</span><span class="p">,</span><span class="w"> </span><span class="n">S</span><span class="p">,</span><span class="w"> </span><span class="n">dmodel</span><span class="o">/</span><span class="n">n_ranks</span><span class="p">,</span><span class="w"> </span><span class="n">dmodel</span><span class="o">/</span><span class="n">n_ranks</span><span class="p">);</span>
+<span class="linenos">53</span>
+<span class="linenos">54</span><span class="n">scale</span><span class="p">(</span><span class="n">KQ</span><span class="p">,</span><span class="w"> </span><span class="n">KQ</span><span class="p">,</span><span class="w"> </span><span class="p">((</span><span class="kt">void</span><span class="o">*</span><span class="p">)</span><span class="o">&amp;</span><span class="n">scale_f</span><span class="p">),</span><span class="w"> </span><span class="n">data_type</span><span class="p">,</span><span class="w"> </span><span class="n">h</span><span class="o">/</span><span class="n">n_ranks</span><span class="o">*</span><span class="n">S</span><span class="p">,</span><span class="w"> </span><span class="n">S</span><span class="p">);</span>
+<span class="linenos">55</span>
+<span class="linenos">56</span><span class="n">softmax</span><span class="p">(</span><span class="n">softmax_out</span><span class="p">,</span><span class="w"> </span><span class="n">KQ</span><span class="p">,</span><span class="w"> </span><span class="n">data_type</span><span class="p">,</span><span class="w"> </span><span class="n">h</span><span class="o">/</span><span class="n">n_ranks</span><span class="o">*</span><span class="n">S</span><span class="p">,</span><span class="w"> </span><span class="n">S</span><span class="p">);</span>
+<span class="linenos">57</span>
+<span class="linenos">58</span><span class="n">gemm</span><span class="p">(</span><span class="n">QKV</span><span class="p">,</span><span class="w"> </span><span class="n">softmax_out</span><span class="p">,</span><span class="w"> </span><span class="n">V</span><span class="p">,</span><span class="w"> </span><span class="n">data_type</span><span class="p">,</span><span class="w"> </span><span class="n">h</span><span class="o">/</span><span class="n">n_ranks</span><span class="p">,</span><span class="w"> </span><span class="n">S</span><span class="p">,</span><span class="w"> </span><span class="n">dmodel</span><span class="o">/</span><span class="n">h</span><span class="p">,</span><span class="w"> </span><span class="n">S</span><span class="p">,</span><span class="w"> </span><span class="n">dmodel</span><span class="o">/</span><span class="n">n_ranks</span><span class="p">,</span><span class="w"> </span><span class="n">S</span><span class="p">,</span><span class="w"> </span><span class="n">dmodel</span><span class="o">/</span><span class="n">n_ranks</span><span class="p">);</span>
+<span class="linenos">59</span>
+<span class="linenos">60</span><span class="n">gemm</span><span class="p">(</span><span class="n">ATTNout</span><span class="p">,</span><span class="w"> </span><span class="n">QKV</span><span class="p">,</span><span class="w"> </span><span class="n">ATTNw</span><span class="p">,</span><span class="w"> </span><span class="n">data_type</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="n">S</span><span class="p">,</span><span class="w"> </span><span class="n">dmodel</span><span class="p">,</span><span class="w"> </span><span class="n">dmodel</span><span class="o">/</span><span class="n">n_ranks</span><span class="p">,</span><span class="w"> </span><span class="n">dmodel</span><span class="p">,</span><span class="w"> </span><span class="n">dmodel</span><span class="o">/</span><span class="n">n_ranks</span><span class="p">,</span><span class="w"> </span><span class="n">dmodel</span><span class="p">);</span>
+<span class="linenos">61</span>
+<span class="linenos">62</span><span class="n">add</span><span class="p">(</span><span class="o">&amp;</span><span class="n">ATTNout</span><span class="p">[</span><span class="n">S</span><span class="o">/</span><span class="n">n_ranks</span><span class="o">*</span><span class="n">rank</span><span class="o">*</span><span class="n">dmodel</span><span class="p">],</span><span class="w"> </span><span class="o">&amp;</span><span class="n">ATTNout</span><span class="p">[</span><span class="n">S</span><span class="o">/</span><span class="n">n_ranks</span><span class="o">*</span><span class="n">rank</span><span class="o">*</span><span class="n">dmodel</span><span class="p">],</span><span class="w"> </span><span class="o">&amp;</span><span class="n">embeddings</span><span class="p">[</span><span class="n">S</span><span class="o">/</span><span class="n">n_ranks</span><span class="o">*</span><span class="n">rank</span><span class="o">*</span><span class="n">dmodel</span><span class="p">],</span><span class="w"> </span><span class="n">data_type</span><span class="p">,</span><span class="w"> </span><span class="n">S</span><span class="o">/</span><span class="n">n_ranks</span><span class="p">,</span><span class="w"> </span><span class="n">dmodel</span><span class="p">);</span>
+<span class="linenos">63</span>
+<span class="hll"><span class="linenos">64</span><span class="n">MPI_Allreduce</span><span class="p">(</span><span class="n">ATTNout</span><span class="p">,</span><span class="w"> </span><span class="n">embeddings</span><span class="p">,</span><span class="w"> </span><span class="n">S</span><span class="o">*</span><span class="n">dmodel</span><span class="p">,</span><span class="w"> </span><span class="n">mpi_data_type</span><span class="p">,</span><span class="w"> </span><span class="n">MPI_SUM</span><span class="p">,</span><span class="w"> </span><span class="n">WORLD</span><span class="p">);</span>
+</span><span class="linenos">65</span>
+<span class="linenos">66</span><span class="cm">/*</span>
+<span class="linenos">67</span><span class="cm"> ...</span>
+<span class="linenos">68</span><span class="cm"> */</span>
+<span class="linenos">69</span>
+<span class="linenos">70</span><span class="n">MPI_Finalize</span><span class="p">();</span>
+</pre></div>
+</div>
+<p>Firstly, the <em>Embeddings</em> matrix needs to be locally stored in every memory space. To do that we
+use a broadcast. Every node produces different heads, hence only the required weights are
+stored in each memory domain (<strong>scatter</strong>). Consequently, less computation are required.
+After, the final addition, we need to gather the heads by executing a <strong>MPI ALL REDUCE</strong>,
+after that all the nodes have the <em>Output</em> result.</p>
+</section>
+</section>
+<section id="demo">
+<h2>DEMO<a class="headerlink" href="#demo" title="Link to this heading"></a></h2>
+<p>For the demo, we will explore two systems. The first is a single-node system, the second
+is a scale-out system.</p>
+<section id="scale-up-system">
+<h3>Scale-up system<a class="headerlink" href="#scale-up-system" title="Link to this heading"></a></h3>
+<p>The python script <a class="reference external" href="../../demo/sst/system/scale_up.py">scale_up</a> build the system for the scale up system. You can explore
+the script to understand how a system is built with SST.</p>
+<p>You can run a simulation by executing the following command in a terminal from
+<em>demo/sst/ssytem</em> folder:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sst<span class="w"> </span>scale_up.py<span class="w"> </span>--<span class="w"> </span>--stats
+</pre></div>
+</div>
+<p>You can also store the statistics in a csv file by passing a file name:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sst<span class="w"> </span>scale_up.py<span class="w"> </span>--<span class="w"> </span>--stats<span class="w"> </span>stats.csv
+</pre></div>
+</div>
+<p>You can configure the number of threads, the number of CPU, the dimensions of the
+workload (Seq<sub>len</sub>, D<sub>model</sub> , heads), and the binary version from the command line:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sst<span class="w"> </span>scale_up.py<span class="w"> </span>--<span class="w"> </span>--num_cpu_per_node<span class="w"> </span><span class="m">2</span><span class="w"> </span>--num_threads_per_cpu<span class="w"> </span><span class="m">2</span><span class="w"> </span>--app_args<span class="w"> </span><span class="s2">&quot;64 128 8&quot;</span>
+--exe<span class="w"> </span><span class="s2">&quot;../software/riscv64/mha_OMP_8&quot;</span>
+</pre></div>
+</div>
+<section id="first-experiment-impact-of-tiling-dimension-on-performance">
+<h4>First experiment: Impact of tiling dimension on performance<a class="headerlink" href="#first-experiment-impact-of-tiling-dimension-on-performance" title="Link to this heading"></a></h4>
+<p>For the first experiment, we will evaluate the impact of the GEMM tiles dimension on the
+<strong>simulated performance</strong>. 4 binaries are provided in <em>software</em> folder.
+You can run a simulation with each binary. To explain the performance difference, you can
+use the generated statistics.</p>
+<div class="admonition hint">
+<p class="admonition-title">Hint</p>
+<p>Store the stats in a CSV file
+Storing the statistics in a csv file makes analysis easier. You can open the file in
+Excel to filter the stats by component or type.</p>
+</div>
+</section>
+<section id="second-experiment-scaling-evaluation">
+<h4>Second experiment: Scaling evaluation<a class="headerlink" href="#second-experiment-scaling-evaluation" title="Link to this heading"></a></h4>
+<p>For the second experiment, we will observe the scaling of the <strong>simulated system</strong>
+(<em>i.e.</em>, performance of the application) and of the simulation (<em>i.e.</em>, performance of
+SST).</p>
+<div class="admonition-pick-the-correct-binary admonition">
+<p class="admonition-title">Pick the correct binary</p>
+<p>Make sure to use the most efficient binary based on the first experiment</p>
+</div>
+<div class="admonition-run-the-simulations-in-parallel admonition">
+<p class="admonition-title">Run the simulations in parallel</p>
+<p>You can run the simulations with 4 threads (–num-threads=4)</p>
+</div>
+<div class="admonition-measuring-simulation-time admonition">
+<p class="admonition-title">Measuring simulation time</p>
+<p>You can measure the simulation time by enabling –print-timing-info option.</p>
+<p>i.e <cite>sst –print-timing-info scale_up.py …</cite></p>
+</div>
+<p>For the performance of the simulated system, you can fill the table below:</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"></th>
+<th class="head" colspan="3"><p>1 CPU</p></th>
+<th class="head" colspan="3"><p>2 CPU</p></th>
+<th class="head" colspan="3"><p>4 CPU</p></th>
+</tr>
+<tr class="row-even"><th class="head"></th>
+<th class="head"><p>1 thread</p></th>
+<th class="head"><p>2 threads</p></th>
+<th class="head"><p>4 threads</p></th>
+<th class="head"><p>1 thread</p></th>
+<th class="head"><p>2 threads</p></th>
+<th class="head"><p>4 threads</p></th>
+<th class="head"><p>1 thread</p></th>
+<th class="head"><p>2 threads</p></th>
+<th class="head"><p>4 threads</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-odd"><td><p>Simulated time (ms)</p></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p>For the performance of the simulated system, make sure to simulated a system with an intense
+activity (<em>e.g.</em>, 4 CPU 2 threads). You can fill the table below:</p>
+<div class="admonition-calculating-the-simulation-speed-in-mips admonition">
+<p class="admonition-title">Calculating the simulation speed in MIPS</p>
+<p>You can get the number of Million of instructions simulated per second by summing the
+number of instructions executed by all the cores, then divided by the simulation time multiplied by one million.</p>
+</div>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Number of simulation threads</p></th>
+<th class="head"><p>1</p></th>
+<th class="head"><p>2</p></th>
+<th class="head"><p>4</p></th>
+<th class="head"><p>8</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Simulation time (s)</p></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>Million of instr. per second</p></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<section id="scale-out-system">
+<h3>Scale-out system<a class="headerlink" href="#scale-out-system" title="Link to this heading"></a></h3>
+<p>The python script <a class="reference external" href="../../demo/sst/system/scale_out.py">scale_out</a> build the system for the scale out system. You can explore
+the script to understand how a system is built with SST.</p>
+<p>You can run a simulation by executing the following command in a terminal from
+<em>demo/sst/ssytem</em> folder:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sst<span class="w"> </span>scale_out.py
+</pre></div>
+</div>
+<p>You can also run the simulation in parallel with MPI:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>mpirun<span class="w"> </span>-np<span class="w"> </span><span class="m">4</span><span class="w"> </span>sst<span class="w"> </span>scale_out.py
+</pre></div>
+</div>
+<p>By default, the inter-node network instantiates a simple topology (single router).
+You can configure the number of node in the system from the command line by setting num_node_per_router argument:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sst<span class="w"> </span>scale_out.py<span class="w"> </span>--<span class="w"> </span>--num_node_per_router<span class="o">=</span><span class="m">4</span>
+</pre></div>
+</div>
+<section id="first-experiment-changing-the-inter-node-network-topology">
+<h4>First experiment: Changing the inter-node network topology<a class="headerlink" href="#first-experiment-changing-the-inter-node-network-topology" title="Link to this heading"></a></h4>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="linenos">35</span><span class="c1"># Network topology definition start</span>
+<span class="linenos">36</span><span class="n">num_node_per_router</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">num_node_per_router</span>
+<span class="linenos">37</span>
+<span class="linenos">38</span><span class="n">network_topology</span> <span class="o">=</span> <span class="s2">&quot;simple&quot;</span>
+<span class="linenos">39</span>
+<span class="linenos">40</span><span class="c1">#network_topology = &quot;torus&quot;</span>
+<span class="linenos">41</span><span class="c1">#torus_width = 2</span>
+<span class="linenos">42</span><span class="c1">#torus_shape = [2, 2]</span>
+<span class="linenos">43</span><span class="c1">#</span>
+<span class="linenos">44</span><span class="c1">#network_topology = &quot;fattree&quot;</span>
+<span class="linenos">45</span><span class="c1">#fattree_shape = &quot;1,1:2,2&quot;</span>
+<span class="linenos">46</span><span class="c1">#fattree_shape = &#39;:&#39;.join([fattree_shape, str(num_node_per_router)])</span>
+<span class="linenos">47</span>
+<span class="linenos">48</span><span class="c1"># Network topology definition end</span>
+</pre></div>
+</div>
+<p>You can change the network topology by editing the python script from line 35 to 48.</p>
+<p>To use a <strong>torus</strong> topology, you need to comment the line 38 and uncomment the lines 40 to
+42. <em>torus_width</em> defines the number of link between two routers. <em>torus_shape</em> defines
+the shape of the network: the size of the array defines the number of dimensions (i.e. 2
+elements means a 2D torus, 3 elements a 3D torus) and each element defines the number of
+router per dimension. The number of instantiated nodes is equal to the total number of
+routers times <em>num_node_per_router</em>.</p>
+<p>To use a <strong>fat tree</strong> topology, you need to comment the line 38 and uncomment the lines
+44 to 46. <em>fattree_shape</em> defines the shape of the network.</p>
+</section>
+<section id="id2">
+<h4>Second experiment: Scaling evaluation<a class="headerlink" href="#id2" title="Link to this heading"></a></h4>
+<p>For the last experiment, we will observe the scaling of the <strong>simulated system</strong>
+(<em>i.e.</em>, performance of the application) and of the simulation (<em>i.e.</em>, performance of
+SST).</p>
+<p>The objective is to observe the scaling of the simulated system to define the expectation
+for scaling of the simulation. Ideally, we would like to observe the simulation time
+decreasing with the simulated time.</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Number of node &amp; MPI ranks</p></th>
+<th class="head"><p>1</p></th>
+<th class="head"><p>2</p></th>
+<th class="head"><p>4</p></th>
+<th class="head"><p>8</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Simulated time (ms)</p></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>Simulation time (s)</p></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+</section>
+<section id="references">
+<h2>References<a class="headerlink" href="#references" title="Link to this heading"></a></h2>
+<div class="docutils container" id="id3">
+<div role="list" class="citation-list">
+<div class="citation" id="id4" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span><a role="doc-backlink" href="#id1">VSP+17</a><span class="fn-bracket">]</span></span>
+<p>Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan N. Gomez, Lukasz Kaiser, and Illia Polosukhin. Attention is all you need. <em>CoRR</em>, 2017. URL: <a class="reference external" href="http://arxiv.org/abs/1706.03762">http://arxiv.org/abs/1706.03762</a>, <a class="reference external" href="https://arxiv.org/abs/1706.03762">arXiv:1706.03762</a>.</p>
+</div>
+</div>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="gem5.html" class="btn btn-neutral float-left" title="Application-oriented system modeling and optimization" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, imec vzw.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

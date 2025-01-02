@@ -1,0 +1,162 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>A tutorial on scalable system simulations for RISC-V architectures and performance analysis for machine learning workloads &mdash; VLSI Design Conference Tutorial 2025 0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=2709fde1"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Application-oriented system modeling and optimization" href="gem5.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="#" class="icon icon-home">
+            VLSI Design Conference Tutorial 2025
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="gem5.html">Application-oriented system modeling and optimization</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sst.html">Installation instructions for scale-out system simulation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sst.html#scale-out-system-simulation-with-sst">Scale-out system simulation with SST</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="#">VLSI Design Conference Tutorial 2025</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="#" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">A tutorial on scalable system simulations for RISC-V architectures and performance analysis for machine learning workloads</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/index.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="a-tutorial-on-scalable-system-simulations-for-risc-v-architectures-and-performance-analysis-for-machine-learning-workloads">
+<h1>A tutorial on scalable system simulations for RISC-V architectures and performance analysis for machine learning workloads<a class="headerlink" href="#a-tutorial-on-scalable-system-simulations-for-risc-v-architectures-and-performance-analysis-for-machine-learning-workloads" title="Link to this heading"></a></h1>
+<p>This tutorial aims to provide a comprehensive introduction to computer system simulations
+and performance analysis, focusing on the integration and application of consensual open-source frameworks
+like Structural Simulation Toolkit (SST), Gem5, and Multi-Level Intermediate Representation (MLIR).
+Participants will gain hands-on experience in conducting an architectural design exploration with a pragmatic approach
+where the simulation framework used is chosen based on a trade-off between fidelity and scalability requirements. By the end of the tutorial, participants will be equipped with the skills necessary to conduct in-depth performance analysis and optimize complex systems using state-of-the-art tools.</p>
+<div class="toctree-wrapper compound">
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="gem5.html">Application-oriented system modeling and optimization</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="gem5.html#prerequisites">Prerequisites</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="gem5.html#containerized-environment">Containerized environment</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="gem5.html#environment-setup">Environment Setup</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="gem5.html#part-1-prepare-benchmark">Part 1: Prepare benchmark</a></li>
+<li class="toctree-l3"><a class="reference internal" href="gem5.html#part-2-compile-iree-run-module">Part 2: Compile IREE run module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="gem5.html#part-3-compile-m5-utility">Part 3: Compile m5 utility</a></li>
+<li class="toctree-l3"><a class="reference internal" href="gem5.html#part-4-prepare-risc-v-disk-image">Part 4: Prepare RISC-V disk image</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="gem5.html#machine-learning-workload-execution">Machine Learning Workload Execution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="gem5.html#extra-checkpoints">Extra: Checkpoints</a></li>
+<li class="toctree-l2"><a class="reference internal" href="gem5.html#experimental-studies">Experimental Studies</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="gem5.html#part-1-change-cpu-model">Part 1: Change CPU model</a></li>
+<li class="toctree-l3"><a class="reference internal" href="gem5.html#part-2-change-cache-hierarchy">Part 2: Change cache hierarchy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="gem5.html#part-3-vectorization">Part 3: Vectorization</a></li>
+<li class="toctree-l3"><a class="reference internal" href="gem5.html#part-4-new-benchmarks">Part 4: New benchmarks</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="sst.html">Installation instructions for scale-out system simulation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="sst.html#install-instructions-for-sst">Install instructions for SST</a></li>
+<li class="toctree-l2"><a class="reference internal" href="sst.html#install-instructions-for-rv64-mpi-compiler">Install instructions for rv64 mpi compiler</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="sst.html#scale-out-system-simulation-with-sst">Scale-out system simulation with SST</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="sst.html#environment-setup">Environment Setup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="sst.html#context">Context</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sst.html#system-under-exploration">System under exploration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="sst.html#workload-under-evaluation">Workload under evaluation</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sst.html#demo">DEMO</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sst.html#scale-up-system">Scale-up system</a></li>
+<li class="toctree-l3"><a class="reference internal" href="sst.html#scale-out-system">Scale-out system</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sst.html#references">References</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="gem5.html" class="btn btn-neutral float-right" title="Application-oriented system modeling and optimization" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, imec vzw.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

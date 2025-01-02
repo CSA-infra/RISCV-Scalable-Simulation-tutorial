@@ -1,0 +1,521 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Application-oriented system modeling and optimization &mdash; VLSI Design Conference Tutorial 2025 0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=2709fde1"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Installation instructions for scale-out system simulation" href="sst.html" />
+    <link rel="prev" title="A tutorial on scalable system simulations for RISC-V architectures and performance analysis for machine learning workloads" href="index.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            VLSI Design Conference Tutorial 2025
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Application-oriented system modeling and optimization</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#prerequisites">Prerequisites</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#containerized-environment">Containerized environment</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#environment-setup">Environment Setup</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#part-1-prepare-benchmark">Part 1: Prepare benchmark</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#part-2-compile-iree-run-module">Part 2: Compile IREE run module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#part-3-compile-m5-utility">Part 3: Compile m5 utility</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#part-4-prepare-risc-v-disk-image">Part 4: Prepare RISC-V disk image</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#machine-learning-workload-execution">Machine Learning Workload Execution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#extra-checkpoints">Extra: Checkpoints</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#experimental-studies">Experimental Studies</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#part-1-change-cpu-model">Part 1: Change CPU model</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#part-2-change-cache-hierarchy">Part 2: Change cache hierarchy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#part-3-vectorization">Part 3: Vectorization</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#part-4-new-benchmarks">Part 4: New benchmarks</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="sst.html">Installation instructions for scale-out system simulation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sst.html#scale-out-system-simulation-with-sst">Scale-out system simulation with SST</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">VLSI Design Conference Tutorial 2025</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Application-oriented system modeling and optimization</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/gem5.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="application-oriented-system-modeling-and-optimization">
+<h1>Application-oriented system modeling and optimization<a class="headerlink" href="#application-oriented-system-modeling-and-optimization" title="Link to this heading"></a></h1>
+<p><strong>How to lower an AI/ML model to simulated RISC-V hardware for
+system-level exploration?</strong> The goal of this tutorial is to introduce
+the attendees to architectural simulation targeting machine learning
+workloads. The main tool we will be using to model a sample RISC-V
+system and run applications on top is
+<a class="reference external" href="https://www.gem5.org/">gem5</a>. The ML benchmarks are derived from
+ONNX files, translated into machine-optimized code and executed though a
+ligthweight runtime. This process is carried out with the help of the
+<a class="reference external" href="https://iree.dev/">IREE</a> workflow.</p>
+<section id="prerequisites">
+<h2>Prerequisites<a class="headerlink" href="#prerequisites" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>A Linux-based x86-64 system (native or WSL2/VM)</p></li>
+<li><p>Docker or Podman</p></li>
+</ul>
+<section id="containerized-environment">
+<h3>Containerized environment<a class="headerlink" href="#containerized-environment" title="Link to this heading"></a></h3>
+<blockquote>
+<div><dl class="field-list simple">
+<dt class="field-odd">information_source<span class="colon">:</span></dt>
+<dd class="field-odd"><p>The container is executed in privileged mode to</p>
+</dd>
+</dl>
+<p>allow mounting the disk image as loop device. If you don’t like this,
+remove the corresponding option from <code class="docutils literal notranslate"><span class="pre">docker-compose.yaml</span></code>.</p>
+</div></blockquote>
+<p>Dealing with all the software dependencies that this setup needs can be
+complicated. For this reason, a container file has been provided, which
+allows to generate a virtual environment with all the dependencies
+installed. This can be used with Docker or Podman. Assuming that Docker
+is present in your system, you can prepare the environment this way:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">cd</span> <span class="n">docker</span>
+<span class="n">docker</span> <span class="n">compose</span> <span class="n">up</span> <span class="o">-</span><span class="n">d</span>
+</pre></div>
+</div>
+<p>If it doesn’t work, try with <code class="docutils literal notranslate"><span class="pre">docker-compose</span></code> alternatively.</p>
+<p>To enter the container:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">docker</span> <span class="n">exec</span> <span class="o">-</span><span class="n">it</span> <span class="n">docker_vlsid</span><span class="o">-</span><span class="n">iree</span><span class="o">-</span><span class="n">gem5_1</span> <span class="o">/</span><span class="nb">bin</span><span class="o">/</span><span class="n">bash</span>
+</pre></div>
+</div>
+<p>If you close the container (e.g. reboot), you can easily return back to
+it with:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">docker</span> <span class="n">start</span> <span class="n">docker_vlsid</span><span class="o">-</span><span class="n">iree</span><span class="o">-</span><span class="n">gem5_1</span>
+<span class="n">docker</span> <span class="n">exec</span> <span class="o">-</span><span class="n">it</span> <span class="n">docker_vlsid</span><span class="o">-</span><span class="n">iree</span><span class="o">-</span><span class="n">gem5_1</span> <span class="o">/</span><span class="nb">bin</span><span class="o">/</span><span class="n">bash</span>
+</pre></div>
+</div>
+<p>Finally, if you want to destroy the container, you can do it with:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">cd</span> <span class="n">docker</span>
+<span class="n">docker</span> <span class="n">compose</span> <span class="n">down</span>
+</pre></div>
+</div>
+<p>The working directory inside the container is <code class="docutils literal notranslate"><span class="pre">/opt/vlsid-iree-gem5</span></code>.
+We will assume that every command is executed from that folder.</p>
+</section>
+</section>
+<section id="environment-setup">
+<h2>Environment Setup<a class="headerlink" href="#environment-setup" title="Link to this heading"></a></h2>
+<section id="part-1-prepare-benchmark">
+<h3>Part 1: Prepare benchmark<a class="headerlink" href="#part-1-prepare-benchmark" title="Link to this heading"></a></h3>
+<p>A simple MNIST image classification model will be used as example, but
+the process is generalizable to other ONNX models too. IREE also
+supports TF/TFLite formats, it is possible to convert them to MLIR using
+the right importers.</p>
+<ul class="simple">
+<li><p>Download ONNX model</p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">wget</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">github</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">onnx</span><span class="o">/</span><span class="n">models</span><span class="o">/</span><span class="n">raw</span><span class="o">/</span><span class="n">refs</span><span class="o">/</span><span class="n">heads</span><span class="o">/</span><span class="n">main</span><span class="o">/</span><span class="n">validated</span><span class="o">/</span><span class="n">vision</span><span class="o">/</span><span class="n">classification</span><span class="o">/</span><span class="n">mnist</span><span class="o">/</span><span class="n">model</span><span class="o">/</span><span class="n">mnist</span><span class="o">-</span><span class="mf">8.</span><span class="n">onnx</span> <span class="o">-</span><span class="n">O</span> <span class="n">mnist</span><span class="o">-</span><span class="mi">8</span><span class="o">-</span><span class="n">orig</span><span class="o">.</span><span class="n">onnx</span>
+</pre></div>
+</div>
+<ul class="simple">
+<li><p><a class="reference external" href="https://iree.dev/guides/ml-frameworks/onnx/#troubleshooting">Upgrade ONNX
+opset</a></p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">./</span><span class="n">convert_onnx_model</span><span class="o">.</span><span class="n">py</span> <span class="n">mnist</span><span class="o">-</span><span class="mi">8</span><span class="o">-</span><span class="n">orig</span><span class="o">.</span><span class="n">onnx</span> <span class="n">mnist</span><span class="o">-</span><span class="mf">8.</span><span class="n">onnx</span>
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>Use IREE to convert ONNX file to MLIR Torch ONNX dialect</p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">iree</span><span class="o">-</span><span class="n">import</span><span class="o">-</span><span class="n">onnx</span> <span class="n">mnist</span><span class="o">-</span><span class="mf">8.</span><span class="n">onnx</span> <span class="o">&gt;</span> <span class="n">mnist</span><span class="o">-</span><span class="mf">8.</span><span class="n">mlir</span>
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>Compile IREE benchmark to VMFB</p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">iree</span><span class="o">-</span><span class="nb">compile</span> <span class="o">--</span><span class="n">iree</span><span class="o">-</span><span class="n">hal</span><span class="o">-</span><span class="n">target</span><span class="o">-</span><span class="n">backends</span><span class="o">=</span><span class="n">llvm</span><span class="o">-</span><span class="n">cpu</span> <span class="o">--</span><span class="n">iree</span><span class="o">-</span><span class="n">llvmcpu</span><span class="o">-</span><span class="n">target</span><span class="o">-</span><span class="n">triple</span><span class="o">=</span><span class="n">riscv64</span> <span class="o">--</span><span class="n">iree</span><span class="o">-</span><span class="n">llvmcpu</span><span class="o">-</span><span class="n">target</span><span class="o">-</span><span class="n">cpu</span><span class="o">-</span><span class="n">features</span><span class="o">=+</span><span class="n">m</span><span class="p">,</span><span class="o">+</span><span class="n">a</span><span class="p">,</span><span class="o">+</span><span class="n">f</span><span class="p">,</span><span class="o">+</span><span class="n">d</span><span class="p">,</span><span class="o">+</span><span class="n">c</span> <span class="n">mnist</span><span class="o">-</span><span class="mf">8.</span><span class="n">mlir</span> <span class="o">-</span><span class="n">o</span> <span class="n">mnist</span><span class="o">-</span><span class="mf">8.</span><span class="n">vmfb</span>
+</pre></div>
+</div>
+</section>
+<section id="part-2-compile-iree-run-module">
+<h3>Part 2: Compile IREE run module<a class="headerlink" href="#part-2-compile-iree-run-module" title="Link to this heading"></a></h3>
+<p>The IREE run module allows the execution of a compiled module using the
+IREE runtime. This module has to be added to the final disk image
+together with the benchmarks, since we don’t want to pull the entire
+IREE distribution.</p>
+<p>Even if pre-built binaries are available, as of now they are not
+compiled for any RISC-V architecture. Thus, we will have to compile this
+module from source. A Makefile has been provided to simplify the
+process.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">make</span> <span class="o">-</span><span class="n">C</span> <span class="n">iree</span>
+</pre></div>
+</div>
+</section>
+<section id="part-3-compile-m5-utility">
+<h3>Part 3: Compile m5 utility<a class="headerlink" href="#part-3-compile-m5-utility" title="Link to this heading"></a></h3>
+<p>The m5 utility is used to send pseudo-instructions to the simulator.
+This allows a number of operations, like checkpointing, resetting
+statistics, etc. We want to include this utility in our final image.
+Note that will need the cross-compiler employed in the previous step to
+generate the binary.</p>
+<ul class="simple">
+<li><p>Get the gem5 simulator</p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">git</span> <span class="n">clone</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">github</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">gem5</span><span class="o">/</span><span class="n">gem5</span><span class="o">.</span><span class="n">git</span> <span class="o">-</span><span class="n">b</span> <span class="n">v24</span><span class="mf">.1</span>
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>Compile the m5 utility</p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>export PATH=$PATH:$(realpath toolchain-riscv64/bin)
+scons riscv.CROSS_COMPILE=riscv64-buildroot-linux-musl- -C gem5/util/m5 build/riscv/out/m5
+</pre></div>
+</div>
+</section>
+<section id="part-4-prepare-risc-v-disk-image">
+<h3>Part 4: Prepare RISC-V disk image<a class="headerlink" href="#part-4-prepare-risc-v-disk-image" title="Link to this heading"></a></h3>
+<blockquote>
+<div><dl class="field-list simple">
+<dt class="field-odd">warning<span class="colon">:</span></dt>
+<dd class="field-odd"><p>If using Podman or rootless Docker, this steps must be done</p>
+</dd>
+</dl>
+<p>outside the container, as they typically require sudo permissions.
+Pay attention when executing each command!</p>
+</div></blockquote>
+<p>The last part of the setup consists in packing the benchmarks and IREE
+runtime into a disk image. For this task, we will use a pre-built
+minimal image from the gem5 community and modify it.</p>
+<ul class="simple">
+<li><p>Get and extract <a class="reference external" href="https://resources.gem5.org/resources/riscv-disk-img?version=1.0.0">base
+image</a></p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">cd</span> <span class="o">..</span>
+<span class="n">wget</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">storage</span><span class="o">.</span><span class="n">googleapis</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">dist</span><span class="o">.</span><span class="n">gem5</span><span class="o">.</span><span class="n">org</span><span class="o">/</span><span class="n">dist</span><span class="o">/</span><span class="n">develop</span><span class="o">/</span><span class="n">images</span><span class="o">/</span><span class="n">riscv</span><span class="o">/</span><span class="n">busybox</span><span class="o">/</span><span class="n">riscv</span><span class="o">-</span><span class="n">disk</span><span class="o">.</span><span class="n">img</span><span class="o">.</span><span class="n">gz</span>
+<span class="n">gzip</span> <span class="o">-</span><span class="n">d</span> <span class="n">riscv</span><span class="o">-</span><span class="n">disk</span><span class="o">.</span><span class="n">img</span><span class="o">.</span><span class="n">gz</span>
+<span class="n">cp</span> <span class="n">riscv</span><span class="o">-</span><span class="n">disk</span><span class="o">.</span><span class="n">img</span> <span class="n">vlsid</span><span class="o">-</span><span class="n">disk</span><span class="o">.</span><span class="n">img</span>
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>Mount image</p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">mkdir</span> <span class="o">/</span><span class="n">tmp</span><span class="o">/</span><span class="n">rootfs</span>
+<span class="n">sudo</span> <span class="n">mount</span> <span class="n">vlsid</span><span class="o">-</span><span class="n">disk</span><span class="o">.</span><span class="n">img</span> <span class="o">/</span><span class="n">tmp</span><span class="o">/</span><span class="n">rootfs</span>
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>Copy benchmark</p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sudo</span> <span class="n">cp</span> <span class="n">mnist</span><span class="o">-</span><span class="mf">8.</span><span class="n">vmfb</span> <span class="o">/</span><span class="n">tmp</span><span class="o">/</span><span class="n">rootfs</span><span class="o">/</span><span class="n">root</span><span class="o">/</span>
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>Copy IREE run module</p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sudo</span> <span class="n">cp</span> <span class="n">iree</span><span class="o">/</span><span class="n">iree</span><span class="o">-</span><span class="n">build</span><span class="o">-</span><span class="n">riscv64</span><span class="o">/</span><span class="n">install</span><span class="o">/</span><span class="nb">bin</span><span class="o">/</span><span class="n">iree</span><span class="o">-</span><span class="n">run</span><span class="o">-</span><span class="n">module</span> <span class="o">/</span><span class="n">tmp</span><span class="o">/</span><span class="n">rootfs</span><span class="o">/</span><span class="nb">bin</span><span class="o">/</span>
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>Copy m5 utility</p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sudo</span> <span class="n">cp</span> <span class="n">gem5</span><span class="o">/</span><span class="n">util</span><span class="o">/</span><span class="n">m5</span><span class="o">/</span><span class="n">build</span><span class="o">/</span><span class="n">riscv</span><span class="o">/</span><span class="n">out</span><span class="o">/</span><span class="n">m5</span> <span class="o">/</span><span class="n">tmp</span><span class="o">/</span><span class="n">rootfs</span><span class="o">/</span><span class="n">sbin</span><span class="o">/</span>
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>Unmount image</p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sudo</span> <span class="n">umount</span> <span class="o">/</span><span class="n">tmp</span><span class="o">/</span><span class="n">rootfs</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="machine-learning-workload-execution">
+<h2>Machine Learning Workload Execution<a class="headerlink" href="#machine-learning-workload-execution" title="Link to this heading"></a></h2>
+<p>At this point, we are ready to run the experiment. A gem5 configuration
+file is present in this directory, which is derived from the
+<code class="docutils literal notranslate"><span class="pre">riscv-fs.py</span></code> sample script of gem5. The main difference is that
+instead of using the default disk image it will pick the one that we
+have just generated.</p>
+<ul class="simple">
+<li><p>Compile gem5</p></li>
+</ul>
+<blockquote>
+<div><p>{hourglass} This step will take a while.</p>
+</div></blockquote>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>scons build/RISCV/gem5.opt -C gem5 -j$(nproc)
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>Compile m5term</p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">make</span> <span class="o">-</span><span class="n">C</span> <span class="n">gem5</span><span class="o">/</span><span class="n">util</span><span class="o">/</span><span class="n">term</span>
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>Run the script</p></li>
+</ul>
+<blockquote>
+<div><p><a href="#id1"><span class="problematic" id="id2">|:hourglass:|</span></a> This step will take a while. We will speed up following
+executions through checkpointing.</p>
+</div></blockquote>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">./</span><span class="n">build</span><span class="o">/</span><span class="n">RISCV</span><span class="o">/</span><span class="n">gem5</span><span class="o">.</span><span class="n">opt</span> <span class="n">vlsid</span><span class="o">-</span><span class="n">riscv</span><span class="o">-</span><span class="n">fs</span><span class="o">.</span><span class="n">py</span>
+</pre></div>
+</div>
+<p>While the simulation is running, its output is not immediately visible,
+as it is redirected to a separate console. To view it, open another
+terminal and use the m5term utility.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">./</span><span class="n">gem5</span><span class="o">/</span><span class="n">util</span><span class="o">/</span><span class="n">term</span><span class="o">/</span><span class="n">m5term</span> <span class="mi">3456</span>
+</pre></div>
+</div>
+<p>The boot process is going to take several minutes. After that, you will
+se a login shell. Enter user “root” and password “root” to proceed.
+After login, you can launch your IREE benchmark. This is the command to
+execute for MNIST:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">iree</span><span class="o">-</span><span class="n">run</span><span class="o">-</span><span class="n">module</span> <span class="o">--</span><span class="n">module</span><span class="o">=/</span><span class="n">root</span><span class="o">/</span><span class="n">mnist</span><span class="o">-</span><span class="mf">8.</span><span class="n">vmfb</span> <span class="o">--</span><span class="n">device</span><span class="o">=</span><span class="n">local</span><span class="o">-</span><span class="n">task</span> <span class="o">--</span><span class="nb">input</span><span class="o">=</span><span class="s2">&quot;1x1x28x28xf32=0&quot;</span>
+</pre></div>
+</div>
+<p>For simplicity we are assuming an input tensor filled with zeros. You
+should see this output after some time:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">EXEC</span> <span class="nd">@CNTKGraph</span>
+<span class="n">result</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span> <span class="n">hal</span><span class="o">.</span><span class="n">buffer_view</span>
+<span class="mi">1</span><span class="n">x10xf32</span><span class="o">=</span><span class="p">[</span><span class="o">-</span><span class="mf">0.044856</span> <span class="mf">0.00779166</span> <span class="mf">0.0681008</span> <span class="mf">0.0299937</span> <span class="o">-</span><span class="mf">0.12641</span> <span class="mf">0.140219</span> <span class="o">-</span><span class="mf">0.0552849</span> <span class="o">-</span><span class="mf">0.0493838</span> <span class="mf">0.0843221</span> <span class="o">-</span><span class="mf">0.0545404</span><span class="p">]</span>
+</pre></div>
+</div>
+<p>Congratulations! You are ready to go!</p>
+</section>
+<section id="extra-checkpoints">
+<h2>Extra: Checkpoints<a class="headerlink" href="#extra-checkpoints" title="Link to this heading"></a></h2>
+<p>You will have noticed that booting the Linux kernel and reaching the
+login shell takes several minutes, even with a minimal image like the
+one we are using. We want to avoid waiting so long for each one of the
+experiments. One of the commonly used techniques to deal with these
+situations is checkpointing: we can “take a picture” of the system at a
+certain moment of time and start other simulations from that point.
+Technically speaking, this requires saving the main memory content and
+the processors context. Cache content is not saved, but since we will
+execute our benchmarks from scratch this is not a big deal.</p>
+<p>In order to dump a checkpoint, after entering the shell in the simulated
+environment type this command:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">m5</span> <span class="n">checkpoint</span>
+</pre></div>
+</div>
+<p>After terminating the simulation, you will see that in the output folder
+(e.g. <code class="docutils literal notranslate"><span class="pre">m5out</span></code>) a folder named <code class="docutils literal notranslate"><span class="pre">cpt.&lt;somenumber&gt;</span></code> has appeared. This
+contains the checkpoint we have just dumped. We strongly suggest to move
+this folder outside the <code class="docutils literal notranslate"><span class="pre">m5out</span></code> directory.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">mv</span> <span class="n">m5out</span><span class="o">/</span><span class="n">cpt</span><span class="o">.&lt;</span><span class="n">somenumber</span><span class="o">&gt;</span> <span class="n">checkpoint</span>
+</pre></div>
+</div>
+<p>From now on, it will be possible to execute a simulation starting from
+this checkpoint. It is sufficient to add an argument to the gem5
+command, specifying the position of the folder containing the checkpoint
+files:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">./</span><span class="n">build</span><span class="o">/</span><span class="n">RISCV</span><span class="o">/</span><span class="n">gem5</span><span class="o">.</span><span class="n">opt</span> <span class="n">vlsid</span><span class="o">-</span><span class="n">riscv</span><span class="o">-</span><span class="n">fs</span><span class="o">.</span><span class="n">py</span> <span class="o">--</span><span class="n">restore</span><span class="o">-</span><span class="kn">from</span> <span class="nn">checkpoint</span>
+</pre></div>
+</div>
+<p>This way, you will be immediately dropped to the shell. Huge
+improvement!</p>
+</section>
+<section id="experimental-studies">
+<h2>Experimental Studies<a class="headerlink" href="#experimental-studies" title="Link to this heading"></a></h2>
+<p>Now that you are able to run complete simulations, it is time to explore
+a few knobs and analyze their impact on the system performance.</p>
+<section id="part-1-change-cpu-model">
+<h3>Part 1: Change CPU model<a class="headerlink" href="#part-1-change-cpu-model" title="Link to this heading"></a></h3>
+<p>The gem5 simulator supports different <a class="reference external" href="https://raw.githubusercontent.com/gem5bootcamp/gem5-bootcamp-env/main/assets/slides/using-gem5-05-gem5-cpus-tutorial%202.pdf">CPU
+models</a>.
+By default, the script runs with an <em>atomic</em> CPU, which implies atomic
+accesses to the memory system with fixed latencies. This model is fast
+and simple, but inaccurate.</p>
+<p>The first task is to replace the CPU type with a more detailed one.
+There are three possible choices:</p>
+<ul class="simple">
+<li><p><strong>TimingSimpleCPU:</strong> simple timing CPU, 1-stage pipeline</p></li>
+<li><p><strong>MinorCPU:</strong> in-order CPU, 4-stages pipeline</p></li>
+<li><p><strong>O3CPU:</strong> out-of-order CPU, 7-stages pipeline</p></li>
+</ul>
+<p>These CPU models are highly configurable, but for this experiment it is
+fine to stick with the default parameters set.</p>
+<p>To implement such change, open the <code class="docutils literal notranslate"><span class="pre">vlsid-riscv-fs.py</span></code> script and
+change <code class="docutils literal notranslate"><span class="pre">CPUTypes.ATOMIC</span></code> (line 78) to <code class="docutils literal notranslate"><span class="pre">CPUTypes.TIMING</span></code>,
+<code class="docutils literal notranslate"><span class="pre">CPUTypes.MINOR</span></code> and <code class="docutils literal notranslate"><span class="pre">CPUTypes.O3</span></code>. After each execution, have a
+look at the <code class="docutils literal notranslate"><span class="pre">stats.txt</span></code> file in the output folder (default:
+<code class="docutils literal notranslate"><span class="pre">m5out</span></code>). In particular, look at how these statistics change:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">simSeconds</span> <span class="o">-&gt;</span> <span class="n">Simulated</span> <span class="n">system</span> <span class="n">execution</span> <span class="n">time</span>
+<span class="n">hostSeconds</span> <span class="o">-&gt;</span> <span class="n">Host</span> <span class="n">system</span> <span class="n">simulation</span> <span class="n">time</span>
+<span class="n">board</span><span class="o">.</span><span class="n">processor</span><span class="o">.</span><span class="n">cores</span><span class="o">.</span><span class="n">core</span><span class="o">.</span><span class="n">ipc</span> <span class="o">-&gt;</span> <span class="n">IPC</span> <span class="n">of</span> <span class="n">simulated</span> <span class="n">CPU</span>
+<span class="n">board</span><span class="o">.</span><span class="n">memory</span><span class="o">.</span><span class="n">mem_ctrl</span><span class="o">.</span><span class="n">dram</span><span class="o">.</span><span class="n">bwTotal</span><span class="p">::</span><span class="n">total</span> <span class="o">-&gt;</span> <span class="n">DRAM</span> <span class="n">memory</span> <span class="n">bandwidth</span>
+</pre></div>
+</div>
+<p><strong>Tip 1:</strong> Wrap your benchmark execution around the commands “m5
+resetstats” and “m5 exit”, to make sure that the statistics only reflect
+the benchmark execution and not the system boot or idle time. E.g.:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">m5</span> <span class="n">resetstats</span> <span class="o">&amp;&amp;</span> <span class="n">iree</span><span class="o">-</span><span class="n">run</span><span class="o">-</span><span class="n">module</span> <span class="p">[</span><span class="o">...</span><span class="p">]</span> <span class="o">&amp;&amp;</span> <span class="n">m5</span> <span class="n">exit</span>
+</pre></div>
+</div>
+<p><strong>Tip 2:</strong> You can specify different output folders for each experiment.
+E.g.:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">gem5</span><span class="o">.</span><span class="n">opt</span> <span class="o">-</span><span class="n">d</span> <span class="o">./</span><span class="n">experiment1</span> <span class="n">vlsid</span><span class="o">-</span><span class="n">riscv</span><span class="o">-</span><span class="n">fs</span><span class="o">.</span><span class="n">py</span>
+</pre></div>
+</div>
+</section>
+<section id="part-2-change-cache-hierarchy">
+<h3>Part 2: Change cache hierarchy<a class="headerlink" href="#part-2-change-cache-hierarchy" title="Link to this heading"></a></h3>
+<p>The cache configuration can have a significant impact on the system
+performance, depending on the data locality and access patterns of the
+executed applications. This is one of the knobs we can easily change in
+the <code class="docutils literal notranslate"><span class="pre">vlsid-riscv-fs.py</span></code> configuration file (line 70).</p>
+<p>The second task consists in performing the experiments after applying
+the following modifications (one by one):</p>
+<ul class="simple">
+<li><p>Decrease L1I (instruction cache) and L1D (data cache) size from 32 kB
+to 8 kB</p></li>
+<li><p>Increase L2 (last-level cache) size from 512 kB to 2 MB</p></li>
+</ul>
+<p>Use MinorCPU or O3CPU. Compare the output statistic with the baseline
+configuration, to check if there is a change in performance and how
+appreciable that is. You can also have a look at cache-specific metrics,
+e.g. the miss rates:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">board</span><span class="o">.</span><span class="n">cache_hierarchy</span><span class="o">.</span><span class="n">l1d</span><span class="o">-</span><span class="n">cache</span><span class="o">-</span><span class="mf">0.</span><span class="n">overallMissRate</span><span class="p">::</span><span class="n">total</span>
+<span class="n">board</span><span class="o">.</span><span class="n">cache_hierarchy</span><span class="o">.</span><span class="n">l1i</span><span class="o">-</span><span class="n">cache</span><span class="o">-</span><span class="mf">0.</span><span class="n">overallMissRate</span><span class="p">::</span><span class="n">total</span>
+<span class="n">board</span><span class="o">.</span><span class="n">cache_hierarchy</span><span class="o">.</span><span class="n">l2</span><span class="o">-</span><span class="n">cache</span><span class="o">-</span><span class="mf">0.</span><span class="n">overallMissRate</span><span class="p">::</span><span class="n">total</span>
+</pre></div>
+</div>
+</section>
+<section id="part-3-vectorization">
+<h3>Part 3: Vectorization<a class="headerlink" href="#part-3-vectorization" title="Link to this heading"></a></h3>
+<p>The RISC-V architecture we are simulating supports the RVV vector
+extension v1.0. This means that the IREE compiler can optimize the
+application by enabling SIMD support. The default VLEN for the simulated
+hardware is of 256 bits.</p>
+<p>For this step, we will need to recompile the benchmark and add it to the
+disk image. The following command will create an RVV-enabled benchmark:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">iree</span><span class="o">-</span><span class="nb">compile</span> <span class="o">--</span><span class="n">iree</span><span class="o">-</span><span class="n">hal</span><span class="o">-</span><span class="n">target</span><span class="o">-</span><span class="n">backends</span><span class="o">=</span><span class="n">llvm</span><span class="o">-</span><span class="n">cpu</span> <span class="o">--</span><span class="n">iree</span><span class="o">-</span><span class="n">llvmcpu</span><span class="o">-</span><span class="n">target</span><span class="o">-</span><span class="n">triple</span><span class="o">=</span><span class="n">riscv64</span> <span class="o">--</span><span class="n">iree</span><span class="o">-</span><span class="n">llvmcpu</span><span class="o">-</span><span class="n">target</span><span class="o">-</span><span class="n">cpu</span><span class="o">-</span><span class="n">features</span><span class="o">=+</span><span class="n">m</span><span class="p">,</span><span class="o">+</span><span class="n">a</span><span class="p">,</span><span class="o">+</span><span class="n">f</span><span class="p">,</span><span class="o">+</span><span class="n">d</span><span class="p">,</span><span class="o">+</span><span class="n">c</span><span class="p">,</span><span class="o">+</span><span class="n">v</span><span class="p">,</span><span class="o">+</span><span class="n">zvl256b</span> <span class="o">-</span><span class="n">riscv</span><span class="o">-</span><span class="n">v</span><span class="o">-</span><span class="n">vector</span><span class="o">-</span><span class="n">bits</span><span class="o">-</span><span class="nb">min</span><span class="o">=</span><span class="mi">256</span> <span class="o">-</span><span class="n">riscv</span><span class="o">-</span><span class="n">v</span><span class="o">-</span><span class="n">fixed</span><span class="o">-</span><span class="n">length</span><span class="o">-</span><span class="n">vector</span><span class="o">-</span><span class="n">lmul</span><span class="o">-</span><span class="nb">max</span><span class="o">=</span><span class="mi">8</span> <span class="n">mnist</span><span class="o">-</span><span class="mf">8.</span><span class="n">mlir</span> <span class="o">-</span><span class="n">o</span> <span class="n">mnist</span><span class="o">-</span><span class="mi">8</span>
+<span class="o">-</span><span class="n">v</span><span class="o">.</span><span class="n">vmfb</span>
+</pre></div>
+</div>
+<p>Execute this new version of the benchmark and compare the output with
+the non-vectorized version. You should notice an improvement of the
+performance.</p>
+<p><strong>Note:</strong> Like other microarchitectural parameters, the latencies of the
+vector units are not calibrated on any specific design, and default
+values are used. Do not expect fully realistic numbers.</p>
+</section>
+<section id="part-4-new-benchmarks">
+<h3>Part 4: New benchmarks<a class="headerlink" href="#part-4-new-benchmarks" title="Link to this heading"></a></h3>
+<blockquote>
+<div><dl class="field-list simple">
+<dt class="field-odd">warning<span class="colon">:</span></dt>
+<dd class="field-odd"><p>The execution time can be much higher for more complex</p>
+</dd>
+</dl>
+<p>benchmarks, even in atomic mode. We suggest you to try out these
+tests after the tutorial, keeping the simulations as background tasks
+until they complete.</p>
+</div></blockquote>
+<p>Now that you know how to run the full workflow, you can try out new
+benchmarks. Bear in mind that not all the models are supported with the
+current version of IREE, and compatibility issues may arise when
+compiling. We will provide you with a few examples that are guaranteed
+to succeed.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">github</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">onnx</span><span class="o">/</span><span class="n">models</span><span class="o">/</span><span class="n">raw</span><span class="o">/</span><span class="n">refs</span><span class="o">/</span><span class="n">heads</span><span class="o">/</span><span class="n">main</span><span class="o">/</span><span class="n">validated</span><span class="o">/</span><span class="n">vision</span><span class="o">/</span><span class="n">classification</span><span class="o">/</span><span class="n">mobilenet</span><span class="o">/</span><span class="n">model</span><span class="o">/</span><span class="n">mobilenetv2</span><span class="o">-</span><span class="mf">10.</span><span class="n">onnx</span>
+<span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">github</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">onnx</span><span class="o">/</span><span class="n">models</span><span class="o">/</span><span class="n">raw</span><span class="o">/</span><span class="n">refs</span><span class="o">/</span><span class="n">heads</span><span class="o">/</span><span class="n">main</span><span class="o">/</span><span class="n">validated</span><span class="o">/</span><span class="n">vision</span><span class="o">/</span><span class="n">super_resolution</span><span class="o">/</span><span class="n">sub_pixel_cnn_2016</span><span class="o">/</span><span class="n">model</span><span class="o">/</span><span class="nb">super</span><span class="o">-</span><span class="n">resolution</span><span class="o">-</span><span class="mf">10.</span><span class="n">onnx</span>
+</pre></div>
+</div>
+<p>The launch commands for these models are:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">iree</span><span class="o">-</span><span class="n">run</span><span class="o">-</span><span class="n">module</span> <span class="o">--</span><span class="n">module</span><span class="o">=/</span><span class="n">root</span><span class="o">/</span><span class="n">mobilenetv2</span><span class="o">-</span><span class="mf">10.</span><span class="n">vmfb</span> <span class="o">--</span><span class="n">device</span><span class="o">=</span><span class="n">local</span><span class="o">-</span><span class="n">task</span> <span class="o">--</span><span class="nb">input</span><span class="o">=</span><span class="s2">&quot;1x1x672x672xf32=0&quot;</span>
+<span class="n">iree</span><span class="o">-</span><span class="n">run</span><span class="o">-</span><span class="n">module</span> <span class="o">--</span><span class="n">module</span><span class="o">=/</span><span class="n">root</span><span class="o">/</span><span class="nb">super</span><span class="o">-</span><span class="n">resolution</span><span class="o">-</span><span class="mf">10.</span><span class="n">vmfb</span> <span class="o">--</span><span class="n">device</span><span class="o">=</span><span class="n">local</span><span class="o">-</span><span class="n">task</span> <span class="o">--</span><span class="nb">input</span><span class="o">=</span><span class="s2">&quot;1x1x224x224xf32=0&quot;</span>
+</pre></div>
+</div>
+<p><strong>Tip:</strong> If you want to store multiple models in your image, or models
+that exceed the image capacity, you may run out of space. You can resize
+the image to a bigger size (e.g. 150 MB) with the following commands:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">e2fsck</span> <span class="o">-</span><span class="n">f</span> <span class="n">vlsid</span><span class="o">-</span><span class="n">disk</span><span class="o">.</span><span class="n">img</span>
+<span class="n">resize2fs</span> <span class="n">vlsid</span><span class="o">-</span><span class="n">disk</span><span class="o">.</span><span class="n">img</span> <span class="mi">150</span><span class="n">M</span>
+</pre></div>
+</div>
+</section>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="index.html" class="btn btn-neutral float-left" title="A tutorial on scalable system simulations for RISC-V architectures and performance analysis for machine learning workloads" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="sst.html" class="btn btn-neutral float-right" title="Installation instructions for scale-out system simulation" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, imec vzw.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
