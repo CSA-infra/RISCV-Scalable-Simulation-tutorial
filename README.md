@@ -6,7 +6,7 @@ Dive into the world of system-level simulations!
 - Learn to scale your system simulations effortlessly with the power of SST.
 
 This tutorial bridges cutting-edge open-source tools and techniques to empower your hardware-software co-design journey. This tutorial has been presented 
-at [International Conference on VLSI Design 2025](vlsid.org).
+at [International Conference on VLSI Design 2025](https://vlsid.org/).
 
 If you use this repository, please cite it as follows:
 
