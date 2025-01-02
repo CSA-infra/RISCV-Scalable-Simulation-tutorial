@@ -1,0 +1,29 @@
+diff --git a/src/sst/elements/merlin/pymerlin.py b/src/sst/elements/merlin/pymerlin.py
+index 7906e064d..dff0973ed 100644
+--- a/src/sst/elements/merlin/pymerlin.py
++++ b/src/sst/elements/merlin/pymerlin.py
+@@ -99,7 +99,7 @@ class topoSimple(Topo):
+         _params["num_peers"] = int(_params["router_radix"])
+ 
+     def build(self):
+-        rtr = self._instanceRouter(0,"merlin.hr)_router")
++        rtr = self._instanceRouter(0,"merlin.hr_router")
+         rtr.setSubComponent("topology","merlin.singlerouter",0)
+         _params["topology"] = "merlin.singlerouter"
+         _params["debug"] = debug
+diff --git a/src/sst/elements/vanadis/Makefile.am b/src/sst/elements/vanadis/Makefile.am
+index 2895b38c5..e5e2cbeaa 100644
+--- a/src/sst/elements/vanadis/Makefile.am
++++ b/src/sst/elements/vanadis/Makefile.am
+@@ -4,8 +4,9 @@
+ 
+ AM_CPPFLAGS += \
+ 	$(MPI_CPPFLAGS) \
+-	-I$(top_srcdir)/src \
+-	-DVANADIS_BUILD_DEBUG
++	-I$(top_srcdir)/src
++
++#	-DVANADIS_BUILD_DEBUG
+ 
+ compdir = $(pkglibdir)
+ comp_LTLIBRARIES = libvanadis.la

@@ -1,0 +1,12 @@
+[submodule "external/sst/sst-elements"]
+	path = external/sst/sst-elements
+	url = https://github.com/sstsimulator/sst-elements.git
+	branch = v14.1.0_Final
+[submodule "external/sst/sst-core"]
+	path = external/sst/sst-core
+	url = https://github.com/sstsimulator/sst-core.git
+	branch = v14.1.0_Final
+[submodule "external/riscv-gnu-toolchain"]
+	path = external/riscv-gnu-toolchain
+	url = https://github.com/riscv-collab/riscv-gnu-toolchain.git
+   branch = 2024.11.22
