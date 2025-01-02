@@ -5,7 +5,8 @@ Dive into the world of system-level simulations!
 - Explore RISC-V modelling and workload representation using gem5+MLIR.
 - Learn to scale your system simulations effortlessly with the power of SST.
 
-This tutorial bridges cutting-edge open-source tools and techniques to empower your hardware-software co-design journey.
+This tutorial bridges cutting-edge open-source tools and techniques to empower your hardware-software co-design journey. This tutorial has been presented 
+at [International Conference on VLSI Design 2025](https://vlsid.org/).
 
 If you use this repository, please cite it as follows:
 
@@ -30,4 +31,4 @@ pip3 install -r requirements.txt
 make html
 ```
 ### Need help?
-If you need help or clarification regarding any part of the tutorial, file an issue in the repository.
+If you need help or clarification regarding any part of the tutorial, file an [issue](https://github.com/CSA-infra/RISCV-Scaleable-Simulation-tutorial/issues/new) in the repository.
