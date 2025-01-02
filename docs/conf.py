@@ -12,7 +12,7 @@
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = 'VLSI Design Conference Tutorial 2025'
-copyright = '2024, imec vzw'
+copyright = '2024-2025, imec vzw'
 author = 'imec vzw'
 release = '0.1'
 
@@ -33,5 +33,10 @@ bibtex_bibfiles = ['references.bib']
 # html_theme = 'alabaster'
 html_theme = "sphinx_rtd_theme"
 html_static_path = ['_static']
-
+html_logo = "512px-LOGO-IMEC_black.svg.png"
+html_theme_options = {
+    'logo_only': False,
+    'display_version': False,
+}
+html_css_files = ['custom_svg.css']
 numfig = True
