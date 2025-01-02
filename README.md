@@ -30,4 +30,4 @@ pip3 install -r requirements.txt
 make html
 ```
 ### Need help?
-If you need help or clarification regarding any part of the tutorial, file an issue in the repository.
+If you need help or clarification regarding any part of the tutorial, file an [issue](https://github.com/CSA-infra/RISCV-Scaleable-Simulation-tutorial/issues/new) in the repository.
