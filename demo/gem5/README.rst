@@ -20,7 +20,7 @@ Prerequisites
 Containerized environment
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-   :information_source: The container is executed in privileged mode to
+   ℹ️ The container is executed in privileged mode to
    allow mounting the disk image as loop device. If you don’t like this,
    remove the corresponding option from ``docker-compose.yaml``.
 
@@ -139,7 +139,7 @@ generate the binary.
 Part 4: Prepare RISC-V disk image
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-   :warning: If using Podman or rootless Docker, this steps must be done
+   ⚠️ If using Podman or rootless Docker, this steps must be done
    outside the container, as they typically require sudo permissions.
    Pay attention when executing each command!
 
@@ -201,7 +201,7 @@ have just generated.
 
 ..
 
-   {hourglass} This step will take a while.
+   ⌛ This step will take a while.
 
 ::
 
@@ -217,7 +217,7 @@ have just generated.
 
 ..
 
-   |:hourglass:| This step will take a while. We will speed up following
+   ⌛ This step will take a while. We will speed up following
    executions through checkpointing.
 
 ::
@@ -399,7 +399,7 @@ values are used. Do not expect fully realistic numbers.
 Part 4: New benchmarks
 ~~~~~~~~~~~~~~~~~~~~~~
 
-   :warning: The execution time can be much higher for more complex
+   ⚠️ The execution time can be much higher for more complex
    benchmarks, even in atomic mode. We suggest you to try out these
    tests after the tutorial, keeping the simulations as background tasks
    until they complete.
