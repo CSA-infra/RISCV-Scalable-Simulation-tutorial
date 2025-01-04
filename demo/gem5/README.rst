@@ -21,8 +21,9 @@ Prerequisites
 Containerized environment
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-   ℹ️ The container is executed in privileged mode to
-   allow mounting the disk image as loop device. If you don’t like this,
+.. note::
+   The container is executed in privileged mode to
+   allow mounting the disk image as a loop device. If you don’t like this,
    remove the corresponding option from ``docker-compose.yaml``.
 
 Dealing with all the software dependencies that this setup needs can be
@@ -145,7 +146,8 @@ generate the binary.
 Part 4: Prepare RISC-V disk image
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-   ⚠️ If using Podman or rootless Docker, this steps must be done
+.. warning::
+   If using Podman or rootless Docker, this steps must be done
    outside the container, as they typically require sudo permissions.
    Pay attention when executing each command!
 
@@ -205,9 +207,8 @@ have just generated.
 
 - Compile gem5
 
-..
-
-   ⌛ This step will take a while.
+.. note::
+   This step will take a while.
 
 ::
 
@@ -221,9 +222,8 @@ have just generated.
 
 - Run the script
 
-..
-
-   ⌛ This step will take a while. We will speed up following
+.. note::
+   This step will take a while. We will speed up following
    executions through checkpointing.
 
 ::
@@ -405,7 +405,8 @@ values are used. Do not expect fully realistic numbers.
 Part 4: New benchmarks
 ~~~~~~~~~~~~~~~~~~~~~~
 
-   ⚠️ The execution time can be much higher for more complex
+.. warning::
+   The execution time can be much higher for more complex
    benchmarks, even in atomic mode. We suggest you to try out these
    tests after the tutorial, keeping the simulations as background tasks
    until they complete.
