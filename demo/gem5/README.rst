@@ -79,6 +79,11 @@ the process is generalizable to other models too. The file format for the
 model is ONNX. Note that IREE also supports other formats (e.g. TF/TFLite),
 it is possible to convert them to MLIR using the right importers.
 
+.. figure:: images/gem5/mnist-8.svg
+   :align: center
+
+   Visual representation of the MNIST model
+
 - Download ONNX model
 
 ::
