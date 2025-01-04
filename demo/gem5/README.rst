@@ -98,7 +98,7 @@ it is possible to convert them to MLIR using the right importers.
 
    iree-import-onnx mnist-8.onnx > mnist-8.mlir
 
-- Compile IREE benchmark to VMFB
+- Compile MLIR model to VMFB
 
 ::
 
@@ -134,7 +134,7 @@ generate the binary.
 
 ::
 
-   git clone https://github.com/gem5/gem5.git -b v24.1
+   git clone https://github.com/gem5/gem5.git -b v24.1.0.1
 
 - Compile the m5 utility
 
@@ -160,7 +160,6 @@ minimal image from the gem5 community and modify it.
 
 ::
 
-   cd ..
    wget https://storage.googleapis.com/dist.gem5.org/dist/develop/images/riscv/busybox/riscv-disk.img.gz
    gzip -d riscv-disk.img.gz
    cp riscv-disk.img vlsid-disk.img
