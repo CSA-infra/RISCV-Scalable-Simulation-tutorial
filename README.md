@@ -22,7 +22,8 @@ If you use this repository, please cite it as follows:
 ```
 
 ### Getting Started
-Build the documentation to get start with the two-part tutorial. Minimum required version of python is 3.10. The tutorial has been tested on Linux based systems.
+Follow the documentation [online](https://csa-infra.github.io/RISCV-Scalable-Simulation-tutorial/index.html) or build the documentation  yourself. 
+Minimum required version of python is 3.10. The tutorial has been tested on Linux based systems.
 
 ```
 python3 -m venv imec_tut_2025
