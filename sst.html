@@ -213,11 +213,11 @@ cycle-approximate accuracy.</p>
 <span id="cpu-figure"></span><a class="reference internal image-reference" href="_images/cpu.svg"><img alt="_images/cpu.svg" src="_images/cpu.svg" style="width: 400px;" />
 </a>
 <figcaption>
-<p><span class="caption-number">Fig. 1 </span><span class="caption-text">Microarchitecture of a cpu core.</span><a class="headerlink" href="#id5" title="Link to this image"></a></p>
+<p><span class="caption-number">Fig. 2 </span><span class="caption-text">Microarchitecture of a cpu core.</span><a class="headerlink" href="#id5" title="Link to this image"></a></p>
 </figcaption>
 </figure>
 <p>The system under exploration is made up of multi-threaded RISC-V CPU cores. As illustrated
-in Figure <a class="reference internal" href="#cpu-figure"><span class="std std-numref">Fig. 1</span></a>, a CPU core is attached to an L1 data cache and an L1
+in Figure <a class="reference internal" href="#cpu-figure"><span class="std std-numref">Fig. 2</span></a>, a CPU core is attached to an L1 data cache and an L1
 instruction cache. The two caches are interconnect to a second level of cache (L2 cache)
 with a memory bus. The core itself is composed of one decoder for each thread, one branch
 unit and one dispatch unit, one register file for floating point numbers and another one
@@ -228,10 +228,10 @@ the operating system.</p>
 <span id="node-figure"></span><a class="reference internal image-reference" href="_images/node.svg"><img alt="_images/node.svg" src="_images/node.svg" style="width: 600px;" />
 </a>
 <figcaption>
-<p><span class="caption-number">Fig. 2 </span><span class="caption-text">Microarchitecture of a compute node.</span><a class="headerlink" href="#id6" title="Link to this image"></a></p>
+<p><span class="caption-number">Fig. 3 </span><span class="caption-text">Microarchitecture of a compute node.</span><a class="headerlink" href="#id6" title="Link to this image"></a></p>
 </figcaption>
 </figure>
-<p>As shown in Figure <a class="reference internal" href="#node-figure"><span class="std std-numref">Fig. 2</span></a>, the RISC-V cores are integrated into a compute
+<p>As shown in Figure <a class="reference internal" href="#node-figure"><span class="std std-numref">Fig. 3</span></a>, the RISC-V cores are integrated into a compute
 node. The number of cores per node is configurable from the script. The set of L2 caches
 are federated with a directory which maintains coherency in the node. The L2s and the
 directory are interconnected through a NoC. The directory is attached to a DRAM
@@ -242,11 +242,11 @@ minimal service required to run applications.</p>
 <span id="system-figure"></span><a class="reference internal image-reference" href="_images/system.svg"><img alt="Scale-out system microarchitecture" src="_images/system.svg" style="width: 800px;" />
 </a>
 <figcaption>
-<p><span class="caption-number">Fig. 3 </span><span class="caption-text">Microarchitecture of a multi-node system.</span><a class="headerlink" href="#id7" title="Link to this image"></a></p>
+<p><span class="caption-number">Fig. 4 </span><span class="caption-text">Microarchitecture of a multi-node system.</span><a class="headerlink" href="#id7" title="Link to this image"></a></p>
 </figcaption>
 </figure>
 <p>Multi-node can be interconnect with a network to build a scale-out system, as illustrated
-in Figure <a class="reference internal" href="#system-figure"><span class="std std-numref">Fig. 3</span></a>. Each node has an independent operating system and a
+in Figure <a class="reference internal" href="#system-figure"><span class="std std-numref">Fig. 4</span></a>. Each node has an independent operating system and a
 private memory space. To allow communication between node, we can use
 Message Passing Interface (MPI). To do that, each node integrates a NIC in addition. The
 latter is interconnected to the NoC.</p>
@@ -294,10 +294,10 @@ calculation layers of transformers <span id="id1">[<a class="reference internal"
 <span id="omp-mha-figure"></span><a class="reference internal image-reference" href="_images/mha.svg"><img alt="Multi-head attention block" src="_images/mha.svg" style="width: 600px;" />
 </a>
 <figcaption>
-<p><span class="caption-number">Fig. 4 </span><span class="caption-text">Illustration of the workload run on a single-node system.</span><a class="headerlink" href="#id9" title="Link to this image"></a></p>
+<p><span class="caption-number">Fig. 5 </span><span class="caption-text">Illustration of the workload run on a single-node system.</span><a class="headerlink" href="#id9" title="Link to this image"></a></p>
 </figcaption>
 </figure>
-<p>As shown in Figure <a class="reference internal" href="#omp-mha-figure"><span class="std std-numref">Fig. 4</span></a>, the application multiplies an <em>Embeddings</em>
+<p>As shown in Figure <a class="reference internal" href="#omp-mha-figure"><span class="std std-numref">Fig. 5</span></a>, the application multiplies an <em>Embeddings</em>
 matrix of Seq<sub>len</sub>x D<sub>model</sub> elements with 3 matrices of
 D<sub>model</sub> x D<sub>model</sub> weights, producing 3 matrices of  Seq<sub>len</sub>x D<sub>model</sub> elements,
 called Keys, Queries and Values. In fact, the weight matrices are divided into <em>heads</em>.
@@ -340,11 +340,11 @@ tiles.</p>
 <span id="omp-mpi-mha-figure"></span><a class="reference internal image-reference" href="_images/mha_mpi.svg"><img alt="Multi-head attention block" src="_images/mha_mpi.svg" style="width: 600px;" />
 </a>
 <figcaption>
-<p><span class="caption-number">Fig. 5 </span><span class="caption-text">Illustration of the workload run on a multi-node system.</span><a class="headerlink" href="#id10" title="Link to this image"></a></p>
+<p><span class="caption-number">Fig. 6 </span><span class="caption-text">Illustration of the workload run on a multi-node system.</span><a class="headerlink" href="#id10" title="Link to this image"></a></p>
 </figcaption>
 </figure>
 <p>As the <em>heads</em> can be processed independently until the addition, the workload can be
-easily parallelized on a distributed memory system. As illustrated in Figure <a class="reference internal" href="#omp-mpi-mha-figure"><span class="std std-numref">Fig. 5</span></a>,
+easily parallelized on a distributed memory system. As illustrated in Figure <a class="reference internal" href="#omp-mpi-mha-figure"><span class="std std-numref">Fig. 6</span></a>,
 running the workload on a multi-node system requires only a few extra steps.
 The corresponding application is implemented with MPI to handle the communication between
 the nodes and OpenMP to parallelize the kernels within a node. The code is written in
