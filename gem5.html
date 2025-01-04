@@ -117,11 +117,12 @@ ligthweight runtime. This process is carried out with the help of the
 </ul>
 <section id="containerized-environment">
 <h3>Containerized environment<a class="headerlink" href="#containerized-environment" title="Link to this heading"></a></h3>
-<blockquote>
-<div><p>ℹ️ The container is executed in privileged mode to
-allow mounting the disk image as loop device. If you don’t like this,
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The container is executed in privileged mode to
+allow mounting the disk image as a loop device. If you don’t like this,
 remove the corresponding option from <code class="docutils literal notranslate"><span class="pre">docker-compose.yaml</span></code>.</p>
-</div></blockquote>
+</div>
 <p>Dealing with all the software dependencies that this setup needs can be
 complicated. For this reason, a container file has been provided, which
 allows to generate a virtual environment with all the dependencies
@@ -226,11 +227,12 @@ scons riscv.CROSS_COMPILE=riscv64-buildroot-linux-musl- -C gem5/util/m5 build/ri
 </section>
 <section id="part-4-prepare-risc-v-disk-image">
 <h3>Part 4: Prepare RISC-V disk image<a class="headerlink" href="#part-4-prepare-risc-v-disk-image" title="Link to this heading"></a></h3>
-<blockquote>
-<div><p>⚠️ If using Podman or rootless Docker, this steps must be done
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>If using Podman or rootless Docker, this steps must be done
 outside the container, as they typically require sudo permissions.
 Pay attention when executing each command!</p>
-</div></blockquote>
+</div>
 <p>The last part of the setup consists in packing the benchmarks and IREE
 runtime into a disk image. For this task, we will use a pre-built
 minimal image from the gem5 community and modify it.</p>
@@ -287,9 +289,10 @@ have just generated.</p>
 <ul class="simple">
 <li><p>Compile gem5</p></li>
 </ul>
-<blockquote>
-<div><p>⌛ This step will take a while.</p>
-</div></blockquote>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This step will take a while.</p>
+</div>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>scons build/RISCV/gem5.opt -C gem5 -j$(nproc)
 </pre></div>
 </div>
@@ -302,10 +305,11 @@ have just generated.</p>
 <ul class="simple">
 <li><p>Run the script</p></li>
 </ul>
-<blockquote>
-<div><p>⌛ This step will take a while. We will speed up following
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This step will take a while. We will speed up following
 executions through checkpointing.</p>
-</div></blockquote>
+</div>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">./</span><span class="n">build</span><span class="o">/</span><span class="n">RISCV</span><span class="o">/</span><span class="n">gem5</span><span class="o">.</span><span class="n">opt</span> <span class="n">vlsid</span><span class="o">-</span><span class="n">riscv</span><span class="o">-</span><span class="n">fs</span><span class="o">.</span><span class="n">py</span>
 </pre></div>
 </div>
@@ -451,12 +455,13 @@ values are used. Do not expect fully realistic numbers.</p>
 </section>
 <section id="part-4-new-benchmarks">
 <h3>Part 4: New benchmarks<a class="headerlink" href="#part-4-new-benchmarks" title="Link to this heading"></a></h3>
-<blockquote>
-<div><p>⚠️ The execution time can be much higher for more complex
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>The execution time can be much higher for more complex
 benchmarks, even in atomic mode. We suggest you to try out these
 tests after the tutorial, keeping the simulations as background tasks
 until they complete.</p>
-</div></blockquote>
+</div>
 <p>Now that you know how to run the full workflow, you can try out new
 benchmarks. Bear in mind that not all the models are supported with the
 current version of IREE, and compatibility issues may arise when
