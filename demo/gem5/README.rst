@@ -1,11 +1,12 @@
 Application-oriented system modeling and optimization
 =====================================================
 
-**How to lower an AI/ML model to simulated RISC-V hardware for
-system-level exploration?** The goal of this tutorial is to introduce
-the attendees to architectural simulation targeting machine learning
-workloads. The main tool we will be using to model a sample RISC-V
-system and run applications on top is
+*i.e. how to lower an AI/ML model to simulated RISC-V hardware for system-level
+exploration*
+
+The goal of this tutorial is to introduce the attendees to architectural
+simulation targeting machine learning workloads. The main tool we will be
+using to model a sample RISC-V system and run applications on top is
 \ `gem5 <https://www.gem5.org/>`__\ . The ML benchmarks are derived from
 ONNX files, translated into machine-optimized code and executed though a
 ligthweight runtime. This process is carried out with the help of the
@@ -27,8 +28,8 @@ Containerized environment
 Dealing with all the software dependencies that this setup needs can be
 complicated. For this reason, a container file has been provided, which
 allows to generate a virtual environment with all the dependencies
-installed. This can be used with Docker or Podman. Assuming that Docker
-is present in your system, you can prepare the environment this way:
+installed. Assuming that Docker is present in your system, you can prepare
+the environment this way:
 
 ::
 
@@ -43,7 +44,7 @@ To enter the container:
 
    docker exec -it docker_vlsid-iree-gem5_1 /bin/bash
 
-If you close the container (e.g. reboot), you can easily return back to
+If you stop the container (e.g. reboot), you can easily return back to
 it with:
 
 ::
@@ -67,10 +68,15 @@ Environment Setup
 Part 1: Prepare benchmark
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
+The IREE workflow is used to first convert a ML model to a supported
+intermediate representation, then compile and optimize the model for a
+target architecture. The output of the process is a Virtual Machine
+FlatBuffer (VMFB) file than can be run by the IREE runtime.
+
 A simple MNIST image classification model will be used as example, but
-the process is generalizable to other ONNX models too. IREE also
-supports TF/TFLite formats, it is possible to convert them to MLIR using
-the right importers.
+the process is generalizable to other models too. The file format for the
+model is ONNX. Note that IREE also supports other formats (e.g. TF/TFLite),
+it is possible to convert them to MLIR using the right importers.
 
 - Download ONNX model
 
