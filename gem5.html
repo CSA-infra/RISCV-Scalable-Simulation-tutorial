@@ -7,7 +7,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Application-oriented system modeling and optimization &mdash; VLSI Design Conference Tutorial 2025 0.1 documentation</title>
-      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
       <link rel="stylesheet" type="text/css" href="_static/custom_svg.css" />
 
@@ -291,6 +291,17 @@ file is present in this directory, which is derived from the
 <code class="docutils literal notranslate"><span class="pre">riscv-fs.py</span></code> sample script of gem5. The main difference is that
 instead of using the default disk image it will pick the one that we
 have just generated.</p>
+<p>The script defines a simple RISC-V system comprising a processor, a two-level
+cache hierarchy, a main memory and a generic board with some basic devices
+(UART controller, RNG, disk interface, etc.). An auto-generated diagram of the
+simulated system is presented below. You may need to zoom in to find out about
+all the individual components and connections.</p>
+<figure class="align-center" id="id2">
+<img alt="_images/gem5-system.svg" src="_images/gem5-system.svg" />
+<figcaption>
+<p><span class="caption-number">Fig. 2 </span><span class="caption-text">Composition of the simulated system</span><a class="headerlink" href="#id2" title="Link to this image"></a></p>
+</figcaption>
+</figure>
 <ul class="simple">
 <li><p>Compile gem5</p></li>
 </ul>
@@ -367,7 +378,7 @@ this folder outside the <code class="docutils literal notranslate"><span class="
 this checkpoint. It is sufficient to add an argument to the gem5
 command, specifying the position of the folder containing the checkpoint
 files:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">./</span><span class="n">build</span><span class="o">/</span><span class="n">RISCV</span><span class="o">/</span><span class="n">gem5</span><span class="o">.</span><span class="n">opt</span> <span class="n">vlsid</span><span class="o">-</span><span class="n">riscv</span><span class="o">-</span><span class="n">fs</span><span class="o">.</span><span class="n">py</span> <span class="o">--</span><span class="n">restore</span><span class="o">-</span><span class="kn">from</span> <span class="nn">checkpoint</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">./</span><span class="n">build</span><span class="o">/</span><span class="n">RISCV</span><span class="o">/</span><span class="n">gem5</span><span class="o">.</span><span class="n">opt</span> <span class="n">vlsid</span><span class="o">-</span><span class="n">riscv</span><span class="o">-</span><span class="n">fs</span><span class="o">.</span><span class="n">py</span> <span class="o">--</span><span class="n">restore</span><span class="o">-</span><span class="kn">from</span><span class="w"> </span><span class="nn">checkpoint</span>
 </pre></div>
 </div>
 <p>This way, you will be immediately dropped to the shell. Huge
