@@ -209,6 +209,17 @@ file is present in this directory, which is derived from the
 instead of using the default disk image it will pick the one that we
 have just generated.
 
+The script defines a simple RISC-V system comprising a processor, a two-level
+cache hierarchy, a main memory and a generic board with some basic devices
+(UART controller, RNG, disk interface, etc.). An auto-generated diagram of the
+simulated system is presented below. You may need to zoom in to find out about
+all the individual components and connections.
+
+.. figure:: images/gem5/gem5-system.svg
+   :align: center
+
+   Composition of the simulated system
+
 - Compile gem5
 
 .. note::
