@@ -34,7 +34,8 @@ the environment this way:
 
 ::
 
-   cd docker
+   git clone https://github.com/CSA-infra/RISCV-Scalable-Simulation-tutorial.git vlsid-csa-tutorial
+   cd vlsid-csa-tutorial/demo/gem5/docker
    docker compose up -d
 
 If it doesn’t work, try with ``docker-compose`` alternatively.
