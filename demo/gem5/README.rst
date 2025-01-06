@@ -58,7 +58,7 @@ Finally, if you want to destroy the container, you can do it with:
 
 ::
 
-   cd docker
+   cd vlsid-csa-tutorial/demo/gem5/docker
    docker compose down
 
 The working directory inside the container is ``/opt/vlsid-iree-gem5``.
