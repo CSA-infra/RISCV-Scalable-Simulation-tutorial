@@ -101,7 +101,7 @@ int main(int argc, char ** argv) {
    clock_gettime(CLOCK_MONOTONIC, &start);
    /* MHA */
 
-   gemm(C, A, B, data_type, 1, m, n, k, m, n, k);
+   gemm(C, A, B, data_type, 1, m, n, k, n, k, n);
 
    clock_gettime(CLOCK_MONOTONIC, &end);
 

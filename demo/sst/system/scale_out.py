@@ -69,7 +69,7 @@ memsize = 2 * 1024**3 # 2GiB
 physMemSize = str(memsize) + " B"
 
 
-full_exe_name = "../software/riscv64/mha_MPI_OMP"
+full_exe_name = "../software/riscv64/hello_MPI"
 
 exe_name= full_exe_name.split("/")[-1]
 
