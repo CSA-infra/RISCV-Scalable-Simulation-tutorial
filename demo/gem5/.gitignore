@@ -4,6 +4,7 @@
 !convert_onnx_model.py
 !docker/
 !docker/*
+!images
 !iree/
 !iree/Makefile
 !iree/toolchain.generic.cmake

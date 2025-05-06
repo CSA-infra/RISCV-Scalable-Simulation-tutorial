@@ -35,6 +35,7 @@ Then, you can install **SST-elements** as follow:
 .. code:: bash
 
    cd sst/sst-elements
+   git apply ../sst-elements.patch
    export SST_ELEMENTS_HOME=$(pwd)/install
    ./autogen.sh
    mkdir build

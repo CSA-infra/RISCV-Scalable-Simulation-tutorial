@@ -273,7 +273,7 @@ is a scale-out system.
 
 Scale-up system
 ~~~~~~~~~~~~~~~
-.. _scale_up: ../../demo/sst/instruction-level-simulation/scale_up.py
+.. _scale_up: ../../demo/sst/system/scale_up.py
 
 The python script `scale_up`_ build the system for the scale up system. You can explore
 the script to understand how a system is built with SST.
@@ -369,7 +369,7 @@ activity (*e.g.*, 4 CPU 2 threads). You can fill the table below:
 
 Scale-out system
 ~~~~~~~~~~~~~~~~
-.. _scale_out: ../../demo/sst/instruction-level-simulation/scale_out.py
+.. _scale_out: ../../demo/sst/system/scale_out.py
 
 The python script `scale_out`_ build the system for the scale out system. You can explore
 the script to understand how a system is built with SST.
@@ -399,7 +399,7 @@ You can configure the number of node in the system from the command line by sett
 First experiment: Changing the inter-node network topology
 ##########################################################
 
-.. literalinclude:: ../demo/sst/instruction-level-simulation/scale_out.py
+.. literalinclude:: ../demo/sst/system/scale_out.py
    :language: python
    :linenos:
    :lineno-start: 35

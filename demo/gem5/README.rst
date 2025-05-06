@@ -1,11 +1,12 @@
 Application-oriented system modeling and optimization
 =====================================================
 
-**How to lower an AI/ML model to simulated RISC-V hardware for
-system-level exploration?** The goal of this tutorial is to introduce
-the attendees to architectural simulation targeting machine learning
-workloads. The main tool we will be using to model a sample RISC-V
-system and run applications on top is
+*i.e. how to lower an AI/ML model to simulated RISC-V hardware for system-level
+exploration*
+
+The goal of this tutorial is to introduce the attendees to architectural
+simulation targeting machine learning workloads. The main tool we will be
+using to model a sample RISC-V system and run applications on top is
 \ `gem5 <https://www.gem5.org/>`__\ . The ML benchmarks are derived from
 ONNX files, translated into machine-optimized code and executed though a
 ligthweight runtime. This process is carried out with the help of the
@@ -20,19 +21,21 @@ Prerequisites
 Containerized environment
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-   :information_source: The container is executed in privileged mode to
-   allow mounting the disk image as loop device. If you don’t like this,
+.. note::
+   The container is executed in privileged mode to
+   allow mounting the disk image as a loop device. If you don’t like this,
    remove the corresponding option from ``docker-compose.yaml``.
 
 Dealing with all the software dependencies that this setup needs can be
 complicated. For this reason, a container file has been provided, which
 allows to generate a virtual environment with all the dependencies
-installed. This can be used with Docker or Podman. Assuming that Docker
-is present in your system, you can prepare the environment this way:
+installed. Assuming that Docker is present in your system, you can prepare
+the environment this way:
 
 ::
 
-   cd docker
+   git clone https://github.com/CSA-infra/RISCV-Scalable-Simulation-tutorial.git vlsid-csa-tutorial
+   cd vlsid-csa-tutorial/demo/gem5/docker
    docker compose up -d
 
 If it doesn’t work, try with ``docker-compose`` alternatively.
@@ -43,7 +46,7 @@ To enter the container:
 
    docker exec -it docker_vlsid-iree-gem5_1 /bin/bash
 
-If you close the container (e.g. reboot), you can easily return back to
+If you stop the container (e.g. reboot), you can easily return back to
 it with:
 
 ::
@@ -55,7 +58,7 @@ Finally, if you want to destroy the container, you can do it with:
 
 ::
 
-   cd docker
+   cd vlsid-csa-tutorial/demo/gem5/docker
    docker compose down
 
 The working directory inside the container is ``/opt/vlsid-iree-gem5``.
@@ -67,10 +70,20 @@ Environment Setup
 Part 1: Prepare benchmark
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
+The IREE workflow is used to first convert a ML model to a supported
+intermediate representation, then compile and optimize the model for a
+target architecture. The output of the process is a Virtual Machine
+FlatBuffer (VMFB) file than can be run by the IREE runtime.
+
 A simple MNIST image classification model will be used as example, but
-the process is generalizable to other ONNX models too. IREE also
-supports TF/TFLite formats, it is possible to convert them to MLIR using
-the right importers.
+the process is generalizable to other models too. The file format for the
+model is ONNX. Note that IREE also supports other formats (e.g. TF/TFLite),
+it is possible to convert them to MLIR using the right importers.
+
+.. figure:: images/gem5/mnist-8.svg
+   :align: center
+
+   Visual representation of the MNIST model
 
 - Download ONNX model
 
@@ -91,7 +104,7 @@ the right importers.
 
    iree-import-onnx mnist-8.onnx > mnist-8.mlir
 
-- Compile IREE benchmark to VMFB
+- Compile MLIR model to VMFB
 
 ::
 
@@ -127,7 +140,7 @@ generate the binary.
 
 ::
 
-   git clone https://github.com/gem5/gem5.git -b v24.1
+   git clone https://github.com/gem5/gem5.git -b v24.1.0.1
 
 - Compile the m5 utility
 
@@ -139,7 +152,8 @@ generate the binary.
 Part 4: Prepare RISC-V disk image
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-   :warning: If using Podman or rootless Docker, this steps must be done
+.. warning::
+   If using Podman or rootless Docker, this steps must be done
    outside the container, as they typically require sudo permissions.
    Pay attention when executing each command!
 
@@ -152,7 +166,6 @@ minimal image from the gem5 community and modify it.
 
 ::
 
-   cd ..
    wget https://storage.googleapis.com/dist.gem5.org/dist/develop/images/riscv/busybox/riscv-disk.img.gz
    gzip -d riscv-disk.img.gz
    cp riscv-disk.img vlsid-disk.img
@@ -197,11 +210,21 @@ file is present in this directory, which is derived from the
 instead of using the default disk image it will pick the one that we
 have just generated.
 
+The script defines a simple RISC-V system comprising a processor, a two-level
+cache hierarchy, a main memory and a generic board with some basic devices
+(UART controller, RNG, disk interface, etc.). An auto-generated diagram of the
+simulated system is presented below. You may need to zoom in to find out about
+all the individual components and connections.
+
+.. figure:: images/gem5/gem5-system.svg
+   :align: center
+
+   Composition of the simulated system
+
 - Compile gem5
 
-..
-
-   {hourglass} This step will take a while.
+.. note::
+   This step will take a while.
 
 ::
 
@@ -215,9 +238,8 @@ have just generated.
 
 - Run the script
 
-..
-
-   |:hourglass:| This step will take a while. We will speed up following
+.. note::
+   This step will take a while. We will speed up following
    executions through checkpointing.
 
 ::
@@ -399,7 +421,8 @@ values are used. Do not expect fully realistic numbers.
 Part 4: New benchmarks
 ~~~~~~~~~~~~~~~~~~~~~~
 
-   :warning: The execution time can be much higher for more complex
+.. warning::
+   The execution time can be much higher for more complex
    benchmarks, even in atomic mode. We suggest you to try out these
    tests after the tutorial, keeping the simulations as background tasks
    until they complete.
