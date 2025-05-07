@@ -1,10 +1,12 @@
 Scale-out system simulation with SST
-====================================
+************************************
 
-**How to perform a scale-out system simulation with cycle-approximate accuracy?**
+**How to perform a scale-out system simulation with instruction-level simulation and packet-level simulation?**
 The goal of the second part of this tutorial is to introduce the Structural Simulation
-Toolkit (SST) framework which allows to simulate a scale-out system with a
-cycle-approximate accuracy.
+Toolkit (SST) framework which allows to simulate a scale-out.
+
+Instruction-level simulation
+============================
 
 Environment Setup
 -----------------
@@ -12,12 +14,8 @@ Environment Setup
 To run the SST experiments you need to install SST. Please refer to `Installation instructions`_.
 
 
-Context
--------
-
-
 System under exploration
-~~~~~~~~~~~~~~~~~~~~~~~~
+------------------------
 .. _cpu figure:
 
 .. figure:: images/sst/cpu.svg
@@ -96,7 +94,7 @@ parameters and their impact on the simulated system using **sst-info** command.
 
 
 Workload under evaluation
-~~~~~~~~~~~~~~~~~~~~~~~~~
+-------------------------
 
 
 The workload under evaluation is inspired by a Multi-head attention, one of the
@@ -271,9 +269,16 @@ DEMO
 For the demo, we will explore two systems. The first is a single-node system, the second
 is a scale-out system.
 
+<<<<<<< HEAD
 Scale-up system
 ~~~~~~~~~~~~~~~
 .. _scale_up: ../../demo/sst/system/scale_up.py
+=======
+**Scale-up system**
+
+
+.. _scale_up: ../../demo/sst/instruction-level-simulation/scale_up.py
+>>>>>>> 2f26412 (LLM ember generator)
 
 The python script `scale_up`_ build the system for the scale up system. You can explore
 the script to understand how a system is built with SST.
@@ -299,8 +304,7 @@ workload (Seq\ :sub:`len`\, D\ :sub:`model` \, heads), and the binary version fr
    sst scale_up.py -- --num_cpu_per_node 2 --num_threads_per_cpu 2 --app_args "64 128 8"
    --exe "../software/riscv64/mha_OMP_8"
 
-First experiment: Impact of tiling dimension on performance
-###########################################################
+*First experiment: Impact of tiling dimension on performance*
 
 For the first experiment, we will evaluate the impact of the GEMM tiles dimension on the
 **simulated performance**. 4 binaries are provided in *software* folder.
@@ -313,8 +317,7 @@ use the generated statistics.
 
 
 
-Second experiment: Scaling evaluation
-#####################################
+*Second experiment: Scaling evaluation*
 
 For the second experiment, we will observe the scaling of the **simulated system**
 (*i.e.*, performance of the application) and of the simulation (*i.e.*, performance of
@@ -367,9 +370,16 @@ activity (*e.g.*, 4 CPU 2 threads). You can fill the table below:
 | Million of instr. per second   |          |           |           |          |
 +--------------------------------+----------+-----------+-----------+----------+
 
+<<<<<<< HEAD
 Scale-out system
 ~~~~~~~~~~~~~~~~
 .. _scale_out: ../../demo/sst/system/scale_out.py
+=======
+**Scale-out system**
+
+
+.. _scale_out: ../../demo/sst/instruction-level-simulation/scale_out.py
+>>>>>>> 2f26412 (LLM ember generator)
 
 The python script `scale_out`_ build the system for the scale out system. You can explore
 the script to understand how a system is built with SST.
@@ -396,8 +406,8 @@ You can configure the number of node in the system from the command line by sett
    sst scale_out.py -- --num_node_per_router=4
 
 
-First experiment: Changing the inter-node network topology
-##########################################################
+*First experiment: Changing the inter-node network topology*
+
 
 .. literalinclude:: ../demo/sst/system/scale_out.py
    :language: python
@@ -422,8 +432,7 @@ To use a **fat tree** topology, you need to comment the line 38 and uncomment th
 44 to 46. *fattree_shape* defines the shape of the network.
 
 
-Second experiment: Scaling evaluation
-#####################################
+*Second experiment: Scaling evaluation*
 
 
 For the last experiment, we will observe the scaling of the **simulated system**
@@ -446,3 +455,86 @@ References
 ----------
 
 .. bibliography::
+
+
+Packet-level simulation
+============================
+
+Parallelism in Large Language Model training
+--------------------------------------------
+.. _transformer_arch figure:
+
+.. figure:: images/transformer/transformer_arch.svg
+   :width: 400
+   :align: center
+
+   Simplified architecture of a decoder-only transformer.
+
+As shown in Figure :numref:`transformer_arch figure`, a decoder-only transformer, like
+Llama 3, is made up of different layers:
+
+* The input is a batch of token sequences which is converted into embeddings tensor by the
+  embeddings layer
+
+* The embeddings tensor crosses L hidden layers which include a Self-Attention block and a multilayer perceptron (MLP)
+
+* Then the embeddings tensor is processed by a normalization function, and projected
+  onto the vocabulary (linear).
+
+* Afterwards, the loss is calculated with a softmax and a cross entropy function.
+
+* Finally, the loss is backpropagated in order to update the weigths
+
+
+.. _tp figure:
+
+.. figure:: images/transformer/tensor_parallelism.svg
+   :width: 400
+   :align: center
+
+   Illustration of tensor parallelism.
+
+.. _pp figure:
+
+.. figure:: images/transformer/pipeline_parallelism_2.svg
+   :width: 400
+   :align: center
+
+   Illustration of 1 forward, 1 backward pipeline parallelism.
+
+.. _dp figure:
+
+.. figure:: images/transformer/data_parallelism.svg
+   :width: 400
+   :align: center
+
+   Illustration of data parallelism.
+
+
+.. _3d figure:
+
+.. figure:: images/transformer/3d_parallelism_1.svg
+   :width: 400
+   :align: center
+
+   Illustration of 3D parallelism.
+
+
+3 types of parallelism are explored in this tutorial:
+
+* Tensor Parallelism as illustrated in Figure :numref:`tp figure`.
+
+* Pipeline Parallelism as illustrated in Figure :numref:`pp figure`.
+
+* Data Parallelism as illustrated in Figure :numref:`dp figure`.
+
+
+The 3 level of parallelism can be merged to enable 3D parallelism as shown in Figure :numref:`3d figure`.
+
+.. _sst-elements.patch: ../../external/sst/sst-elements.patch
+
+4 *Ember* generators are provided in `sst-elements.patch`_ to generate the MPI traffic
+corresponding to the 3 types of parallelism and the fusion of all of them.
+
+DEMO
+----

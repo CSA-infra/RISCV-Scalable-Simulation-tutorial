@@ -1,3 +1,2267 @@
+diff --git a/.gitignore b/.gitignore
+index 0289c72c5..50c34eae4 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -19,3 +19,6 @@ tags
+ .DS_Store
+ *.pdf
+ *.dot
++build/
++install/
++configure~
+diff --git a/src/sst/elements/ember/Makefile.am b/src/sst/elements/ember/Makefile.am
+index 05fd3622b..cd010075a 100644
+--- a/src/sst/elements/ember/Makefile.am
++++ b/src/sst/elements/ember/Makefile.am
+@@ -177,8 +177,18 @@ libember_la_SOURCES = \
+ 	mpi/motifs/embersiriustrace.cc \
+ 	mpi/motifs/emberrandomgen.h \
+ 	mpi/motifs/emberrandomgen.cc \
+-        mpi/motifs/embertricount.h \
+-        mpi/motifs/embertricount.cc \
++	mpi/motifs/embertricount.h \
++	mpi/motifs/embertricount.cc \
++	mpi/motifs/llm/emberLLMTensorParallelism.h \
++	mpi/motifs/llm/emberLLMTensorParallelism.cc \
++	mpi/motifs/llm/emberLLMPipelineParallelism.h \
++	mpi/motifs/llm/emberLLMPipelineParallelism.cc \
++	mpi/motifs/llm/emberLLMDataParallelism.h \
++	mpi/motifs/llm/emberLLMDataParallelism.cc \
++	mpi/motifs/llm/emberLLM3DParallelism.h \
++	mpi/motifs/llm/emberLLM3DParallelism.cc \
++	mpi/motifs/llm/analytical_model.cpp \
++	mpi/motifs/llm/analytical_model.hpp \
+ 	mpi/motifs/emberunstructured.h \
+ 	mpi/motifs/emberunstructured.cc \
+ 	mpi/motifs/emberNtoM.h \
+diff --git a/src/sst/elements/ember/mpi/motifs/llm/analytical_model.cpp b/src/sst/elements/ember/mpi/motifs/llm/analytical_model.cpp
+new file mode 100644
+index 000000000..e72fa537c
+--- /dev/null
++++ b/src/sst/elements/ember/mpi/motifs/llm/analytical_model.cpp
+@@ -0,0 +1,161 @@
++/*
++ Copyright (c) 2025 imec v.z.w.
++ All Rights Reserved.
++
++ Redistribution and use in source and binary forms, with or without
++ modification, are permitted provided that the following conditions are
++ met: redistributions of source code must retain the above copyright
++ notice, this list of conditions and the following disclaimer;
++ redistributions in binary form must reproduce the above copyright
++ notice, this list of conditions and the following disclaimer in the
++ documentation and/or other materials provided with the distribution;
++ neither the name of the copyright holders nor the names of its
++ contributors may be used to endorse or promote products derived from
++ this software without specific prior written permission.
++
++ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
++ "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
++ LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
++ A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
++ OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
++ SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
++ LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
++ DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
++ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
++ (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
++ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++
++ Author: Erwan Lenormand (imec/CSA)
++*/
++
++#include "analytical_model.hpp"
++
++const uint64_t get_params_size(const uint64_t hidden_size,
++                              const uint64_t vocab_size,
++                              const uint64_t num_hidden_layers,
++                              const uint64_t num_key_value_heads,
++                              const uint64_t intermediate_size,
++                              const uint64_t dtype_size) {
++
++   const uint64_t size =
++      vocab_size * hidden_size * dtype_size +
++      num_hidden_layers * (
++            2 * hidden_size * sizeof(float) +
++            hidden_size*(2*hidden_size + 2*hidden_size/num_key_value_heads) * dtype_size +
++            3 * hidden_size * intermediate_size * dtype_size) +
++         hidden_size * sizeof(float) +
++         hidden_size * vocab_size * dtype_size;
++
++   return size;
++
++}
++
++std::map<compute_step_e, uint64_t> get_compute_time(const uint64_t batch_size,
++                                                    const uint64_t seq_len,
++                                                    const uint64_t hidden_size,
++                                                    const uint64_t num_hidden_layers,
++                                                    const uint64_t num_key_value_heads,
++                                                    const uint64_t num_attention_heads,
++                                                    const uint64_t intermediate_size,
++                                                    const uint64_t vocab_size,
++                                                    const int dtype_size,
++                                                    const double dram_bw,
++                                                    const double peak_flop,
++                                                    const int tp) {
++
++      std::map<compute_step_e, uint64_t> compute_time;
++
++      const uint64_t head_him = hidden_size/num_attention_heads;
++      const uint64_t params_size = get_params_size(hidden_size, vocab_size, num_hidden_layers, num_key_value_heads, intermediate_size, dtype_size);
++
++      compute_time[compute_step_e::TOKENIZE] = TOKENIZE_DURATION;
++
++      compute_time[compute_step_e::EMBD] = (batch_size*seq_len*sizeof(float) + hidden_size/tp * dtype_size * seq_len * 2)/dram_bw;
++
++      compute_time[compute_step_e::ATT_FWD] =
++         // RMS NORM
++         (hidden_size * sizeof(float) + 2 * batch_size * seq_len * hidden_size * dtype_size) / dram_bw +
++         // Q proj
++         (2 * batch_size * seq_len * hidden_size * hidden_size)/(peak_flop * tp) +
++         // K & V Proj
++         (2 * 2 * batch_size * seq_len * hidden_size * hidden_size/num_key_value_heads)/(peak_flop * tp) +
++         // K & V RoPE
++         (batch_size * seq_len * dtype_size * (hidden_size + hidden_size/num_key_value_heads))/(tp * dram_bw) +
++         // KQ
++         (2 * batch_size * num_attention_heads * seq_len * seq_len * head_him)/(peak_flop * tp) +
++         // Softmax
++         (2 * batch_size * num_attention_heads * seq_len * seq_len * dtype_size) / (dram_bw * tp) +
++         // QKV
++         (2 * batch_size * num_attention_heads * seq_len * head_him * seq_len) / (peak_flop * tp) +
++         // ATT OUT
++         (2 * batch_size * seq_len * hidden_size * hidden_size) / (peak_flop * tp) +
++         // Residual
++         (3 * batch_size * seq_len * hidden_size * dtype_size) / (dram_bw * tp);
++
++
++      compute_time[compute_step_e::MLP_FWD] =
++         // RMS NORM
++         (hidden_size * sizeof(float) + 2 * batch_size * seq_len * hidden_size * dtype_size) / dram_bw +
++         // UP & Gate
++         (2 * 2 * batch_size * seq_len * hidden_size * intermediate_size) / (peak_flop * tp) +
++         // Silu
++         (2 * batch_size * seq_len * intermediate_size * dtype_size) / (dram_bw * tp) +
++         // Mul
++         (3 * batch_size * seq_len * intermediate_size * dtype_size) / (dram_bw * tp) +
++         // FFN Out
++         (2 * batch_size * seq_len * hidden_size * intermediate_size) / (peak_flop * tp) +
++         // Residual
++         (3 * batch_size * seq_len * hidden_size * dtype_size) / (dram_bw * tp);
++
++      compute_time[compute_step_e::LOGITS] = (hidden_size * sizeof(float) + 2 * batch_size * seq_len * hidden_size / tp * dtype_size) / dram_bw +
++         (2 * batch_size * seq_len * vocab_size * hidden_size) / (peak_flop * tp);
++      compute_time[compute_step_e::FWD_MAX] = 2*batch_size*seq_len * vocab_size * sizeof(float) / (dram_bw * tp);
++      compute_time[compute_step_e::FWD_SOFTMAX] =  2*batch_size*seq_len * vocab_size * sizeof(float) / (dram_bw * tp);
++
++      compute_time[compute_step_e::LOSS] = 2*batch_size*seq_len * vocab_size * sizeof(float) / (dram_bw * tp); // FIXME
++
++      compute_time[compute_step_e::BCK_LINEAR] = (2 * 2 * batch_size * seq_len * vocab_size * hidden_size) / (peak_flop * tp);
++      compute_time[compute_step_e::BCK_NORM] = ((4 * batch_size * seq_len * hidden_size * dtype_size)/tp + 3 * hidden_size * sizeof(float))/ dram_bw ;
++      compute_time[compute_step_e::MLP_BCK] =
++         // RMS NORM
++         (3 * hidden_size * sizeof(float) + 4 * batch_size * seq_len * hidden_size * dtype_size) / dram_bw +
++         // UP & Gate
++         (2 * 2 * 2 * batch_size * seq_len * hidden_size * intermediate_size) / (peak_flop * tp) +
++         // Silu
++         (4 * batch_size * seq_len * intermediate_size * dtype_size) / (dram_bw * tp) +
++         // Mul
++         (5 * batch_size * seq_len * intermediate_size * dtype_size) / (dram_bw * tp) +
++         // FFN Out
++         (2 * 2 * batch_size * seq_len * hidden_size * intermediate_size) / (peak_flop * tp) +
++         // Residual
++         (5 * batch_size * seq_len * hidden_size * dtype_size) / (dram_bw * tp);
++
++
++
++      compute_time[compute_step_e::ATT_BCK] =
++         // RMS NORM
++         (3 * hidden_size * sizeof(float) + 4 * batch_size * seq_len * hidden_size * dtype_size) / dram_bw +
++         // Q proj
++         (2 * 2 * batch_size * seq_len * hidden_size * hidden_size)/(peak_flop * tp) +
++         // K & V Proj
++         (2 * 2 * 2 * batch_size * seq_len * hidden_size * hidden_size/num_key_value_heads)/(peak_flop * tp) +
++         // K & V RoPE
++         (batch_size * seq_len * dtype_size * (hidden_size + hidden_size/num_key_value_heads))/(tp * dram_bw) + //Fixme
++         // KQ
++         (2 * 2 * batch_size * num_attention_heads * seq_len * seq_len * head_him)/(peak_flop * tp) +
++         // Softmax
++         (3 * batch_size * num_attention_heads * seq_len * seq_len * dtype_size) / (dram_bw * tp) +
++         // QKV
++         (2 * 2 * batch_size * num_attention_heads * seq_len * head_him * seq_len) / (peak_flop * tp) +
++         // ATT OUT
++         (2 * 2 * batch_size * seq_len * hidden_size * hidden_size) / (peak_flop * tp) +
++         // Residual
++         (5 * batch_size * seq_len * hidden_size * dtype_size) / (dram_bw * tp);
++
++
++
++      compute_time[compute_step_e::UPDATE] = 7 * params_size / (dram_bw * tp);
++
++
++      return compute_time;
++}
+diff --git a/src/sst/elements/ember/mpi/motifs/llm/analytical_model.hpp b/src/sst/elements/ember/mpi/motifs/llm/analytical_model.hpp
+new file mode 100644
+index 000000000..469b1a724
+--- /dev/null
++++ b/src/sst/elements/ember/mpi/motifs/llm/analytical_model.hpp
+@@ -0,0 +1,73 @@
++/*
++ Copyright (c) 2025 imec v.z.w.
++ All Rights Reserved.
++
++ Redistribution and use in source and binary forms, with or without
++ modification, are permitted provided that the following conditions are
++ met: redistributions of source code must retain the above copyright
++ notice, this list of conditions and the following disclaimer;
++ redistributions in binary form must reproduce the above copyright
++ notice, this list of conditions and the following disclaimer in the
++ documentation and/or other materials provided with the distribution;
++ neither the name of the copyright holders nor the names of its
++ contributors may be used to endorse or promote products derived from
++ this software without specific prior written permission.
++
++ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
++ "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
++ LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
++ A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
++ OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
++ SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
++ LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
++ DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
++ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
++ (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
++ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++
++ Author: Erwan Lenormand (imec/CSA)
++*/
++#ifndef ANALYTICAL_MODEL_H
++#define ANALYTICAL_MODEL_H
++#include <cstdint>
++#include <map>
++
++#define TOKENIZE_DURATION 1e6
++
++enum compute_step_e : uint8_t {
++   TOKENIZE,
++   EMBD,
++   ATT_FWD,
++   MLP_FWD,
++   LOGITS,
++   FWD_MAX,
++   FWD_SOFTMAX,
++   LOSS,
++   BCK_LINEAR,
++   BCK_NORM,
++   MLP_BCK,
++   ATT_BCK,
++   UPDATE
++};
++
++const uint64_t get_params_size(const uint64_t hidden_size,
++                              const uint64_t vocab_size,
++                              const uint64_t num_hidden_layers,
++                              const uint64_t num_key_value_heads,
++                              const uint64_t intermediate_size,
++                              const uint64_t dtype_size);
++
++std::map<compute_step_e, uint64_t> get_compute_time(const uint64_t batch_size,
++                                                    const uint64_t seq_len,
++                                                    const uint64_t hidden_size,
++                                                    const uint64_t num_hidden_layers,
++                                                    const uint64_t num_key_value_heads,
++                                                    const uint64_t num_attention_heads,
++                                                    const uint64_t intermediate_size,
++                                                    const uint64_t vocab_size,
++                                                    const int dtype_size,
++                                                    const double dram_bw,
++                                                    const double peak_flop,
++                                                    const int tp);
++
++#endif /* end of #ifndef ANALYTICAL_MODEL_H scope */
+diff --git a/src/sst/elements/ember/mpi/motifs/llm/emberLLM3DParallelism.cc b/src/sst/elements/ember/mpi/motifs/llm/emberLLM3DParallelism.cc
+new file mode 100644
+index 000000000..08ef6c1fb
+--- /dev/null
++++ b/src/sst/elements/ember/mpi/motifs/llm/emberLLM3DParallelism.cc
+@@ -0,0 +1,537 @@
++/*
++ Copyright (c) 2025 imec v.z.w.
++ All Rights Reserved.
++
++ Redistribution and use in source and binary forms, with or without
++ modification, are permitted provided that the following conditions are
++ met: redistributions of source code must retain the above copyright
++ notice, this list of conditions and the following disclaimer;
++ redistributions in binary form must reproduce the above copyright
++ notice, this list of conditions and the following disclaimer in the
++ documentation and/or other materials provided with the distribution;
++ neither the name of the copyright holders nor the names of its
++ contributors may be used to endorse or promote products derived from
++ this software without specific prior written permission.
++
++ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
++ "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
++ LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
++ A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
++ OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
++ SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
++ LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
++ DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
++ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
++ (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
++ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++
++ Author: Erwan Lenormand (imec/CSA)
++*/
++#include <algorithm>
++#include <fstream>
++#include <sst/core/sst_config.h>
++#include "../../../../mercury/external/json.hpp"
++#include "emberLLM3DParallelism.h"
++
++#include "analytical_model.hpp"
++
++using namespace SST::Ember;
++
++const static std::vector<std::string> exec_stage_s = {
++   "INIT",
++   "TOKENIZE",
++   "EMBD",
++   "ATT_FWD",
++   "MLP_FWD",
++   "LOGITS",
++   "FWD_MAX",
++   "FWD_SOFTMAX",
++   "LOSS",
++   "BCK_LINEAR",
++   "BCK_NORM",
++   "MLP_BCK",
++   "ATT_BCK",
++   "UPDATE",
++   "UNKNOWN"
++};
++
++const static uint64_t max_buffer_capacity = 1*1024*1024*1024;
++#define TOKENIZE_DURATION 1e6
++
++EmberLLM3DParallelismGenerator::EmberLLM3DParallelismGenerator(SST::ComponentId_t id, Params& params) :
++   EmberMessagePassingGenerator(id, params, "LLM3DParallelism" ),
++   current_stage(INIT),
++   layer_index(0),
++   step_idx_fwd(0),
++   step_idx_bck(0),
++   tp(params.find<uint32_t>("arg.tp", 1)),
++   pp(params.find<uint32_t>("arg.pp", 3)),
++   dp(params.find<uint32_t>("arg.dp", 1)) {
++      my_rank = rank();
++      n_ranks = size();
++
++      verbose = params.find("arg.verbose", 0);
++      std::ostringstream prefix;
++      prefix << "[@t] rank:" << my_rank << " EmberEngine:" << getMotifName() << ":@p:@l: ";
++      out = new Output(prefix.str().c_str(), verbose, 0, Output::STDOUT);
++
++      tp_idx = my_rank%tp;
++      pp_idx = (my_rank/tp)%pp;
++      dp_idx = (my_rank/(tp*pp))%dp;
++
++      out->verbose(CALL_INFO, 5, 0, "TP index:%u PP index:%u DP index:%u\n", tp_idx, pp_idx, dp_idx);
++
++      batch_size = params.find<uint64_t>("arg.batch_size", 1);
++      seq_len = params.find<uint64_t>("arg.sequence_len", 8192);
++      n_step = params.find<uint64_t>("arg.n_step", 128);
++
++
++      n_step = 1 + (((int64_t)n_step) - 1)/dp;
++
++
++      dram_bw = (double)params.find<uint64_t>("arg.dram_bw", 1555000000000UL) / 1e9;
++      peak_flop = (double)params.find<uint64_t>("args.peak_flop", 78000000000000UL) / 1e9;
++
++      bool found = false;
++      std::string config_path = params.find<std::string>("arg.llm_config", found);
++
++      if(!found) {
++         out->fatal(CALL_INFO_LONG, -1, "LLM config file not set\n");
++      }
++
++      std::ifstream config_file(config_path);
++      nlohmann::json config = nlohmann::json::parse(config_file);
++
++      uint64_t max_ctx = config["max_position_embeddings"];
++
++      if(max_ctx < seq_len) {
++         out->fatal(CALL_INFO_LONG, -1, "Sequence length (%u) is greater than context length(%u): %s\n", seq_len, max_ctx);
++      }
++
++      hidden_size = config["hidden_size"];
++      intermediate_size = config["intermediate_size"];
++      num_hidden_layers = config["num_hidden_layers"];
++      uint64_t num_key_value_heads = config["num_key_value_heads"];
++      uint64_t num_attention_heads = config["num_attention_heads"];
++
++      std::string dtype_s = config["torch_dtype"];
++      if(dtype_s == "float32" || dtype_s == "float") {
++         dtype = INT32_T;
++      } else if (dtype_s == "float16" || dtype_s == "half" || dtype_s == "bfloat16") {
++         dtype = INT16_T;
++      } else if (dtype_s == "float8") {
++         dtype = INT8_T;
++      } else {
++         out->fatal(CALL_INFO_LONG, -1, "Unknown dataype: %s\n", dtype_s);
++      }
++      vocab_size = config["vocab_size"];
++
++
++      const uint64_t dtype_size = sizeofDataType(dtype);
++
++      std::map<compute_step_e, uint64_t> compute_map = get_compute_time(batch_size,
++                                                                        seq_len,
++                                                                        hidden_size,
++                                                                        num_hidden_layers,
++                                                                        num_key_value_heads,
++                                                                        num_attention_heads,
++                                                                        intermediate_size,
++                                                                        vocab_size,
++                                                                        dtype_size,
++                                                                        dram_bw,
++                                                                        peak_flop,
++                                                                        tp);
++
++
++      compute_time.resize(exec_stage_e::UNKNOWN,0);
++      compute_time[exec_stage_e::TOKENIZE] = tp_idx == 0 ? compute_map[compute_step_e::TOKENIZE] : 0;
++      compute_time[exec_stage_e::EMBD] = compute_map[compute_step_e::EMBD];
++      compute_time[exec_stage_e::ATT_FWD] = compute_map[compute_step_e::ATT_FWD];
++      compute_time[exec_stage_e::MLP_FWD] = compute_map[compute_step_e::MLP_FWD];
++      compute_time[exec_stage_e::LOGITS] = compute_map[compute_step_e::LOGITS];
++      compute_time[exec_stage_e::FWD_MAX] = compute_map[compute_step_e::FWD_MAX];
++      compute_time[exec_stage_e::FWD_SOFTMAX] = compute_map[compute_step_e::FWD_SOFTMAX];
++      compute_time[exec_stage_e::LOSS] =  compute_map[compute_step_e::LOSS];
++      compute_time[exec_stage_e::BCK_LINEAR] = compute_map[compute_step_e::BCK_LINEAR];
++      compute_time[exec_stage_e::BCK_NORM] = compute_map[compute_step_e::BCK_NORM];
++      compute_time[exec_stage_e::MLP_BCK] = compute_map[compute_step_e::MLP_BCK];
++      compute_time[exec_stage_e::ATT_BCK] = compute_map[compute_step_e::ATT_BCK];
++      compute_time[exec_stage_e::UPDATE] = compute_map[compute_step_e::UPDATE] / dp;
++
++
++
++      for(int i = 0; i < exec_stage_e::UNKNOWN; i++)
++         out->verbose(CALL_INFO, 6, 0, "Compute time[%s]: %lu\n", exec_stage_s[i].c_str(), compute_time[i]);
++
++      num_params.resize(exec_stage_e::UPDATE,0);
++      num_params[exec_stage_e::EMBD] = vocab_size * hidden_size;
++      num_params[exec_stage_e::ATT_FWD] = hidden_size * (1 + 2*hidden_size + 2*hidden_size/num_key_value_heads);
++      num_params[exec_stage_e::MLP_FWD] = hidden_size * (1  + 3*intermediate_size);
++      num_params[exec_stage_e::LOGITS] = hidden_size * (1 + vocab_size);
++      num_params[exec_stage_e::BCK_LINEAR] = hidden_size * (1 + vocab_size);
++      num_params[exec_stage_e::MLP_BCK] = hidden_size * (1 + 3*intermediate_size);
++      num_params[exec_stage_e::ATT_BCK] = hidden_size * (1 + 2*hidden_size + 2*hidden_size/num_key_value_heads);
++
++
++      if(pp < 3){
++         out->fatal(CALL_INFO_LONG, -1, "Number of pp ranks must be at least 3! pp = %u\n", pp);
++      }
++
++      // First rank performs the embeddings layer and updates the weights
++      // Last rank performs the cross entropy loss
++      if(pp_idx == 0 || pp_idx == pp-1) {
++         n_layer_to_execute = 0;
++      } else {
++         n_layer_to_execute = 1 + ((num_hidden_layers - 1) / (pp - 2));
++         n_layer_to_execute = ((pp_idx * n_layer_to_execute) > num_hidden_layers) ? (num_hidden_layers - (n_layer_to_execute * (pp_idx - 1))) : n_layer_to_execute;
++      }
++   }
++
++void EmberLLM3DParallelismGenerator::configure(std::queue<EmberEvent*>& evQ) {
++   tp_grp_idx = my_rank / tp;
++   tp_group.resize(dp*pp);
++   tp_ranks.resize(dp*pp);
++
++   for(int d = 0; d < dp; d++) {
++      for(int p = 0; p < pp; p++) {
++         tp_ranks[d*pp+p].resize(tp);
++         for(int t = 0; t < tp; t++) {
++            int rank = t + p*tp + d*pp*tp;
++            assert(rank < n_ranks);
++            tp_ranks[d*pp+p][t] = rank;
++         }
++
++         enQ_commCreate(evQ, GroupWorld, tp_ranks[d*pp+p], &tp_group[d*pp+p]);
++      }
++   }
++
++   dp_group.resize(tp*pp);
++   dp_ranks.resize(tp*pp);
++   dp_grp_idx = (my_rank % tp) + pp_idx * tp;
++
++   for(int p = 0; p < pp; p++) {
++      for(int t = 0; t < tp; t++) {
++         dp_ranks[p*tp+t].resize(dp);
++         for(int d = 0; d < dp; d++) {
++            dp_ranks[p*tp+t][d] = t + p*tp + d*pp*tp;
++         }
++         enQ_commCreate(evQ, GroupWorld, dp_ranks[p*tp+t], &dp_group[p*tp+t]);
++      }
++   }
++}
++
++#define FWD_PATH 0
++#define BCK_PATH 1
++
++static uint32_t create_tag(const uint32_t step, const uint32_t path) {
++   uint32_t tag = path&0x1;
++   tag |= step << 1;
++   return tag;
++}
++
++void EmberLLM3DParallelismGenerator::isend(std::queue<EmberEvent*>& evQ, uint64_t count, PayloadDataType dtype, int dst, uint32_t tag, Communicator comm, MessageRequest &req)  {
++   assert(dst < n_ranks);
++   uint64_t sent = 0;
++   uint32_t buf_idx = 0;
++   while(sent < count) {
++      tag = tag << 8 | (buf_idx & 0xff);
++      int to_send = (count-sent) < max_buffer_capacity ? (count-sent) : max_buffer_capacity;
++      enQ_isend(evQ, NULL, to_send, dtype, dst, tag, comm, &req);
++      sent += to_send;
++   }
++}
++
++void EmberLLM3DParallelismGenerator::recv(std::queue<EmberEvent*>& evQ, uint64_t count, PayloadDataType dtype, int src, uint32_t tag, Communicator comm)  {
++   assert(src < n_ranks);
++   uint64_t received = 0;
++   uint32_t buf_idx = 0;
++   while(received < count) {
++      int to_receive = (count-received) < max_buffer_capacity ? (count-received) : max_buffer_capacity;
++      tag = tag << 8 | (buf_idx & 0xff);
++      enQ_recv(evQ, NULL, to_receive, dtype, src, tag, comm);
++      received += to_receive;
++   }
++}
++void EmberLLM3DParallelismGenerator::bcast(std::queue<EmberEvent*>& evQ, uint64_t count, PayloadDataType dtype, int root, Communicator comm) {
++   uint64_t sent = 0;
++   while(sent < count) {
++      int to_send = (count-sent) < max_buffer_capacity ? (count-sent) : max_buffer_capacity;
++      enQ_bcast(evQ, NULL, to_send, dtype, root, comm);
++      sent += to_send;
++   }
++}
++
++void EmberLLM3DParallelismGenerator::allgather(std::queue<EmberEvent*>& evQ, uint64_t count, PayloadDataType dtype, Communicator comm)  {
++   uint64_t sent = 0;
++   while(sent < count) {
++      int to_send = (count-sent) < max_buffer_capacity ? (count-sent) : max_buffer_capacity;
++      enQ_allgather(evQ, NULL, to_send, dtype, NULL, to_send, dtype, comm);
++      sent += to_send;
++   }
++}
++
++void EmberLLM3DParallelismGenerator::allreduce(std::queue<EmberEvent*>& evQ, uint64_t count, PayloadDataType dtype,ReductionOperation op, Communicator comm)  {
++   uint64_t sent = 0;
++   while(sent < count) {
++      int to_send = (count-sent) < max_buffer_capacity ? (count-sent) : max_buffer_capacity;
++      enQ_allreduce(evQ, NULL, NULL, to_send, dtype, op, comm);
++      sent += to_send;
++   }
++}
++
++
++bool EmberLLM3DParallelismGenerator::generate(std::queue<EmberEvent*>& evQ) {
++   bool finish = false;
++   exec_stage_e next_stage = exec_stage_e::UNKNOWN;
++
++   switch(current_stage) {
++      case INIT: {
++         configure(evQ);
++         if(pp_idx == 0) {
++            next_stage = exec_stage_e::TOKENIZE;
++         } else if(pp_idx == (pp - 1)) {
++            next_stage = exec_stage_e::LOGITS;
++         } else {
++            next_stage = exec_stage_e::ATT_FWD;
++         }
++         break;
++      }
++      case TOKENIZE: {
++         enQ_compute(evQ, compute_time[current_stage]);
++
++         layer_index = 0;
++         uint64_t msg_size = batch_size*seq_len/tp;
++         allgather(evQ, msg_size, INT32_T, tp_group[tp_grp_idx]);
++         next_stage = exec_stage_e::EMBD;
++         break;
++      }
++      case EMBD: {
++         uint64_t msg_size = num_params[current_stage]/(dp*tp);
++         allgather(evQ, msg_size, dtype, dp_group[dp_grp_idx]);
++
++         enQ_compute(evQ, compute_time[current_stage]);
++
++
++         msg_size = batch_size*seq_len*hidden_size/tp;
++         uint32_t tag = create_tag(step_idx_fwd, FWD_PATH);
++         isend(evQ, msg_size, dtype, my_rank + tp, tag, GroupWorld, req);
++
++         step_idx_fwd++;
++         if(step_idx_fwd < pp && step_idx_fwd < n_step) {
++            next_stage = current_stage;
++         } else {
++            next_stage = exec_stage_e::UPDATE;
++         }
++
++         msg_size = batch_size*seq_len*hidden_size/tp;
++         allgather(evQ, msg_size, dtype, tp_group[tp_grp_idx]);
++         break;
++      }
++      case ATT_FWD: {
++         uint64_t msg_size = num_params[current_stage]/(dp*tp);
++         allgather(evQ, msg_size, dtype, dp_group[dp_grp_idx]);
++
++         if(layer_index == 0) {
++            uint32_t tag = create_tag(step_idx_fwd, FWD_PATH);
++            msg_size = batch_size*seq_len*hidden_size/tp;
++            recv(evQ, msg_size, dtype, my_rank-tp, tag, GroupWorld);
++         }
++
++         enQ_compute(evQ, compute_time[current_stage]);
++
++         msg_size = batch_size*seq_len*hidden_size/tp;
++         allreduce(evQ, msg_size, dtype, Hermes::MP::SUM, tp_group[tp_grp_idx]);
++
++         next_stage = exec_stage_e::MLP_FWD;
++         break;
++      }
++      case MLP_FWD: {
++         uint64_t msg_size = num_params[current_stage]/(dp*tp);
++         allgather(evQ, msg_size, dtype, dp_group[dp_grp_idx]);
++
++         enQ_compute(evQ, compute_time[current_stage]);
++
++         layer_index++;
++         msg_size = batch_size*seq_len*hidden_size/tp;
++         allreduce(evQ, msg_size, dtype, Hermes::MP::SUM, tp_group[tp_grp_idx]);
++
++         if(layer_index == n_layer_to_execute) {
++            layer_index = 0;
++            uint32_t tag = create_tag(step_idx_fwd, FWD_PATH);
++            uint64_t msg_size = (batch_size*seq_len*hidden_size)/tp;
++            isend(evQ, msg_size, dtype, my_rank + tp, tag, GroupWorld, req);
++
++            step_idx_fwd++;
++
++            if(step_idx_fwd < (pp-pp_idx) && step_idx_fwd < n_step) {
++               next_stage = exec_stage_e::ATT_FWD;
++            } else {
++               next_stage = exec_stage_e::MLP_BCK;
++            }
++         } else {
++            next_stage = exec_stage_e::ATT_FWD;
++         }
++         break;
++      }
++      case LOGITS: {
++         uint64_t msg_size = num_params[current_stage]/(dp*tp);
++         allgather(evQ, msg_size, dtype, dp_group[dp_grp_idx]);
++
++         uint32_t tag = create_tag(step_idx_fwd, FWD_PATH);
++         msg_size = (batch_size*seq_len*hidden_size)/tp;
++         recv(evQ, msg_size, dtype, my_rank-tp, tag, GroupWorld);
++
++         enQ_compute(evQ, compute_time[current_stage]);
++
++         msg_size = batch_size*seq_len*hidden_size/tp;
++         allgather(evQ, msg_size, dtype, tp_group[tp_grp_idx]);
++         next_stage = exec_stage_e::FWD_MAX;
++         break;
++      }
++      case FWD_MAX: {
++         enQ_compute(evQ, compute_time[current_stage]);
++
++         uint64_t msg_size =  batch_size*seq_len/tp;
++         allreduce(evQ, msg_size, INT32_T, Hermes::MP::MAX, tp_group[tp_grp_idx]);
++
++         next_stage = exec_stage_e::FWD_SOFTMAX;
++         break;
++      }
++      case FWD_SOFTMAX: {
++         enQ_compute(evQ, compute_time[current_stage]);
++
++         uint64_t msg_size = 2*batch_size*seq_len/tp;
++         allreduce(evQ, msg_size, INT32_T, Hermes::MP::SUM, tp_group[tp_grp_idx]);
++
++         next_stage = exec_stage_e::LOSS;
++         break;
++      }
++      case LOSS: {
++         enQ_compute(evQ, compute_time[current_stage]);
++
++         uint64_t msg_size = batch_size*seq_len*vocab_size/tp;
++         allreduce(evQ, msg_size, dtype, Hermes::MP::SUM, tp_group[tp_grp_idx]);
++
++         next_stage = exec_stage_e::BCK_LINEAR;
++         step_idx_fwd++;
++         break;
++      }
++      case BCK_LINEAR: {
++         uint64_t msg_size = num_params[current_stage]/(dp*tp);
++         allgather(evQ, msg_size, dtype, dp_group[dp_grp_idx]);
++
++         enQ_compute(evQ, compute_time[current_stage]);
++
++         msg_size = batch_size*seq_len*hidden_size/tp;
++         allreduce(evQ, msg_size, dtype, Hermes::MP::SUM, tp_group[tp_grp_idx]);
++
++         next_stage = exec_stage_e::BCK_NORM;
++         break;
++      }
++      case BCK_NORM: {
++         enQ_compute(evQ, compute_time[current_stage]);
++
++         uint64_t msg_size = batch_size*seq_len*hidden_size/tp;
++         allgather(evQ, msg_size, dtype, tp_group[tp_grp_idx]);
++
++         uint32_t tag = create_tag(step_idx_bck, BCK_PATH);
++         msg_size = batch_size*seq_len*hidden_size/tp;
++         isend(evQ, msg_size, dtype, my_rank-tp, tag, GroupWorld, req);
++
++         step_idx_bck++;
++         if(step_idx_bck >= n_step) {
++            finish = true;
++         }
++         next_stage = exec_stage_e::LOGITS;
++         break;
++      }
++      case MLP_BCK: {
++         uint64_t msg_size = num_params[current_stage]/(dp*tp);
++         allgather(evQ, msg_size, dtype, dp_group[dp_grp_idx]);
++
++         if(layer_index == 0) {
++            uint32_t tag = create_tag(step_idx_bck, BCK_PATH);
++            msg_size = batch_size*seq_len*hidden_size/tp;
++            recv(evQ, msg_size, dtype, my_rank+tp, tag, GroupWorld);
++         }
++
++         enQ_compute(evQ, compute_time[current_stage]);
++
++         msg_size = batch_size*seq_len*hidden_size/tp;
++         allreduce(evQ, msg_size, dtype, Hermes::MP::SUM, tp_group[tp_grp_idx]);
++
++         next_stage = exec_stage_e::ATT_BCK;
++         break;
++      }
++      case ATT_BCK: {
++         uint64_t msg_size = num_params[current_stage]/(dp*tp);
++         allgather(evQ, msg_size, dtype, dp_group[dp_grp_idx]);
++
++         enQ_compute(evQ, compute_time[current_stage]);
++
++         layer_index++;
++         msg_size = batch_size*seq_len*hidden_size/tp;
++         allreduce(evQ, msg_size, dtype, Hermes::MP::SUM, tp_group[tp_grp_idx]);
++
++         if(layer_index == n_layer_to_execute) {
++            uint32_t tag = create_tag(step_idx_bck, BCK_PATH);
++            msg_size = batch_size*seq_len*hidden_size/tp;
++            isend(evQ, msg_size, dtype, my_rank-tp, tag, GroupWorld, req);
++
++            layer_index = 0;
++            step_idx_bck++;
++
++
++            int64_t limit = (n_step - (pp - pp_idx));
++            limit = (limit > 0) ? limit : 0;
++            if(step_idx_bck > limit) {
++               next_stage = exec_stage_e::MLP_BCK;
++            } else {
++               next_stage = exec_stage_e::ATT_FWD;
++            }
++
++            if(step_idx_bck >= n_step) {
++               finish = true;
++            }
++         } else {
++            next_stage = exec_stage_e::MLP_BCK;
++         }
++         assert(layer_index < n_layer_to_execute);
++
++         break;
++      }
++      case UPDATE: {
++         uint32_t tag = create_tag(step_idx_bck, BCK_PATH);
++         uint64_t msg_size = batch_size*seq_len*hidden_size/tp;
++         recv(evQ, msg_size, dtype, my_rank+tp, tag, GroupWorld);
++
++         enQ_compute(evQ, compute_time[current_stage]);
++
++         next_stage = exec_stage_e::TOKENIZE;
++         step_idx_bck++;
++
++         int64_t limit = (n_step - (pp - pp_idx));
++         limit = (limit > 0) ? limit : 0;
++         if(step_idx_bck > limit) {
++            next_stage = current_stage;
++         } else {
++            next_stage = exec_stage_e::TOKENIZE;
++         }
++
++         if(step_idx_bck >= n_step) {
++            finish = true;
++         }
++         break;
++      }
++      default:
++         out->fatal(CALL_INFO_LONG, -1, "Unknown execution stage: %d\n", current_stage);
++         break;
++   }
++
++   if(dp_idx == 1)
++      out->verbose(CALL_INFO, 4, 0, "Current stage: %s\tnext stage: %s\tlayer index:%u\tstep index:%u/%u\n",
++         exec_stage_s[current_stage].c_str(), exec_stage_s[next_stage].c_str(), layer_index, step_idx_fwd*dp, step_idx_bck*dp);
++
++   current_stage = next_stage;
++   return finish;
++}
+diff --git a/src/sst/elements/ember/mpi/motifs/llm/emberLLM3DParallelism.h b/src/sst/elements/ember/mpi/motifs/llm/emberLLM3DParallelism.h
+new file mode 100644
+index 000000000..7d45681e3
+--- /dev/null
++++ b/src/sst/elements/ember/mpi/motifs/llm/emberLLM3DParallelism.h
+@@ -0,0 +1,173 @@
++/*
++ Copyright (c) 2025 imec v.z.w.
++ All Rights Reserved.
++
++ Redistribution and use in source and binary forms, with or without
++ modification, are permitted provided that the following conditions are
++ met: redistributions of source code must retain the above copyright
++ notice, this list of conditions and the following disclaimer;
++ redistributions in binary form must reproduce the above copyright
++ notice, this list of conditions and the following disclaimer in the
++ documentation and/or other materials provided with the distribution;
++ neither the name of the copyright holders nor the names of its
++ contributors may be used to endorse or promote products derived from
++ this software without specific prior written permission.
++
++ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
++ "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
++ LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
++ A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
++ OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
++ SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
++ LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
++ DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
++ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
++ (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
++ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++
++ Author: Erwan Lenormand (imec/CSA)
++*/
++#ifndef EMBERLLM3DParallelism_H
++#define EMBERLLM3DParallelism_H
++
++#include "mpi/embermpigen.h"
++
++namespace SST {
++namespace Ember {
++
++class EmberLLM3DParallelismGenerator : public EmberMessagePassingGenerator {
++public:
++   SST_ELI_REGISTER_SUBCOMPONENT(
++         EmberLLM3DParallelismGenerator,
++         "ember",
++         "LLM3DParallelismMotif",
++         SST_ELI_ELEMENT_VERSION(1,0,0),
++         "Performs a LLM 3D Parallel communication Motif",
++         SST::Ember::EmberLLM3DParallelismGenerator
++         )
++
++   SST_ELI_DOCUMENT_PARAMS(
++         {  "arg.tp",              "Tensor Parallelism level", "1" },
++         {  "arg.pp",              "Pipeline Parallelism level", "3" },
++         {  "arg.dp",              "Data Parallelism level", "1" },
++
++         {  "arg.batch_size",      "Number of sequence processed in parallel", "1" },
++         {  "arg.sequence_len",    "Number of token per sequence", "8192" },
++         {  "arg.n_step",          "Number of steps", "128" },
++
++         { "args.dram_bw",         "DRAM bandwidth in byte/second", "1555000000000"},
++         { "args.peak_flop",       "Peak compute throughput @ targeted data type", "78000000000000"},
++
++         {  "arg.llm_config",      "Configuration file of the Large Language Model", NULL },
++         {  "arg.verbose",         "Enable debug prints", "0" }
++         )
++
++   SST_ELI_DOCUMENT_STATISTICS(
++         { "time-Init", "Time spent in Init event",          "ns",  0},
++         { "time-Finalize", "Time spent in Finalize event",  "ns", 0},
++         { "time-Rank", "Time spent in Rank event",          "ns", 0},
++         { "time-Size", "Time spent in Size event",          "ns", 0},
++         { "time-Send", "Time spent in Recv event",          "ns", 0},
++         { "time-Recv", "Time spent in Recv event",          "ns", 0},
++         { "time-Irecv", "Time spent in Irecv event",        "ns", 0},
++         { "time-Isend", "Time spent in Isend event",        "ns", 0},
++         { "time-Wait", "Time spent in Wait event",          "ns", 0},
++         { "time-Waitall", "Time spent in Waitall event",    "ns", 0},
++         { "time-Waitany", "Time spent in Waitany event",    "ns", 0},
++         { "time-Compute", "Time spent in Compute event",    "ns", 0},
++         { "time-Barrier", "Time spent in Barrier event",    "ns", 0},
++         { "time-Alltoallv", "Time spent in Alltoallv event", "ns", 0},
++         { "time-Alltoall", "Time spent in Alltoall event",  "ns", 0},
++         { "time-Allreduce", "Time spent in Allreduce event", "ns", 0},
++         { "time-Reduce", "Time spent in Reduce event",      "ns", 0},
++         { "time-Bcast", "Time spent in Bcast event",        "ns", 0},
++         { "time-Gettime", "Time spent in Gettime event",    "ns", 0},
++         { "time-Commsplit", "Time spent in Commsplit event", "ns", 0},
++         { "time-Commcreate", "Time spent in Commcreate event", "ns", 0})
++
++public:
++   EmberLLM3DParallelismGenerator(SST::ComponentId_t id, Params& params);
++   bool generate(std::queue<EmberEvent*>& evQ);
++
++private:
++
++
++   enum exec_stage_e : uint8_t {
++      INIT,
++      TOKENIZE,
++      EMBD,
++      ATT_FWD,
++      MLP_FWD,
++      LOGITS,
++      FWD_MAX,
++      FWD_SOFTMAX,
++      LOSS,
++      BCK_LINEAR,
++      BCK_NORM,
++      MLP_BCK,
++      ATT_BCK,
++      UPDATE,
++      UNKNOWN
++   };
++
++   void configure(std::queue<EmberEvent*>& evQ);
++   void bcast(std::queue<EmberEvent*>& evQ, uint64_t count, PayloadDataType dtype, int root, Communicator comm);
++   void allgather(std::queue<EmberEvent*>& evQ, uint64_t count, PayloadDataType dtype, Communicator comm);
++   void allreduce(std::queue<EmberEvent*>& evQ, uint64_t count, PayloadDataType dtype,ReductionOperation op, Communicator comm);
++   void isend(std::queue<EmberEvent*>& evQ, uint64_t count, PayloadDataType dtype, int dst, uint32_t tag, Communicator comm, MessageRequest &req);
++   void recv(std::queue<EmberEvent*>& evQ, uint64_t count, PayloadDataType dtype, int src, uint32_t tag, Communicator comm);
++
++   const uint32_t tp;
++   const uint32_t pp;
++   const uint32_t dp;
++
++   uint64_t batch_size;
++   uint64_t seq_len;
++   uint64_t n_step;
++
++   uint64_t hidden_size;
++   uint64_t intermediate_size;
++   uint64_t num_hidden_layers;
++   uint64_t vocab_size;
++   uint64_t num_key_value_heads;
++   uint64_t n_layer_to_execute;
++
++   PayloadDataType dtype;
++
++   exec_stage_e current_stage;
++   uint32_t layer_index;
++   uint32_t step_idx_fwd;
++   uint32_t step_idx_bck;
++
++   std::vector<uint64_t> num_params;
++   std::vector<uint64_t> compute_time;
++   double dram_bw; //byte/ns
++   double peak_flop; // flop/ns
++
++   int my_rank;
++   uint32_t n_ranks;
++
++   uint32_t tp_idx;
++   uint32_t pp_idx;
++   uint32_t dp_idx;
++
++   uint32_t tp_grp_idx;
++   uint32_t dp_grp_idx;
++
++   std::vector<std::vector<int>> tp_ranks;
++   std::vector<std::vector<int>> dp_ranks;
++
++   std::vector<Communicator> tp_group;
++   std::vector<Communicator> dp_group;
++
++   MessageRequest req;
++
++   Output* out;
++   int verbose;
++};
++
++}
++}
++
++
++#endif /* end of #ifndef EMBERLLM3DParallelism_H scope */
+diff --git a/src/sst/elements/ember/mpi/motifs/llm/emberLLMDataParallelism.cc b/src/sst/elements/ember/mpi/motifs/llm/emberLLMDataParallelism.cc
+new file mode 100644
+index 000000000..d60a463b8
+--- /dev/null
++++ b/src/sst/elements/ember/mpi/motifs/llm/emberLLMDataParallelism.cc
+@@ -0,0 +1,246 @@
++/*
++ Copyright (c) 2025 imec v.z.w.
++ All Rights Reserved.
++
++ Redistribution and use in source and binary forms, with or without
++ modification, are permitted provided that the following conditions are
++ met: redistributions of source code must retain the above copyright
++ notice, this list of conditions and the following disclaimer;
++ redistributions in binary form must reproduce the above copyright
++ notice, this list of conditions and the following disclaimer in the
++ documentation and/or other materials provided with the distribution;
++ neither the name of the copyright holders nor the names of its
++ contributors may be used to endorse or promote products derived from
++ this software without specific prior written permission.
++
++ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
++ "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
++ LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
++ A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
++ OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
++ SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
++ LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
++ DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
++ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
++ (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
++ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++
++ Author: Erwan Lenormand (imec/CSA)
++*/
++#include <fstream>
++#include <sst/core/sst_config.h>
++#include "../../../../mercury/external/json.hpp"
++#include "emberLLMDataParallelism.h"
++
++#include "analytical_model.hpp"
++
++using namespace SST::Ember;
++
++const static std::vector<std::string> exec_stage_s = {
++   "INIT",
++   "EMBD",
++   "TB_FWD",
++   "OUT",
++   "TB_BCK",
++   "UPDATE",
++   "UNKNOWN"
++};
++
++#define TOKENIZE_DURATION 1e6
++
++const static int max_buffer_capacity = 1*1024*1024*1024;
++
++EmberLLMDataParallelismGenerator::EmberLLMDataParallelismGenerator(SST::ComponentId_t id, Params& params) :
++   EmberMessagePassingGenerator(id, params, "LLMDataParallelism" ),
++   current_stage(INIT),
++   layer_index(0),
++   step_index(0) {
++
++      my_rank = rank();
++      n_ranks = size();
++
++      verbose = params.find("arg.verbose", 0);
++      std::ostringstream prefix;
++      prefix << "[@t] rank:" << my_rank << " EmberEngine:" << getMotifName() << ":@p:@l: ";
++      out = new Output(prefix.str().c_str(), verbose, 0, Output::STDOUT);
++
++      batch_size = params.find<uint64_t>("arg.batch_size", 1);
++      seq_len = params.find<uint64_t>("arg.sequence_len", 8192);
++      n_step = params.find<uint64_t>("arg.n_step", 128);
++
++      dram_bw = (double)params.find<uint64_t>("arg.dram_bw", 1555000000000UL) / 1e9;
++      peak_flop = (double)params.find<uint64_t>("args.peak_flop", 78000000000000UL) / 1e9;
++
++      bool found = false;
++      std::string config_path = params.find<std::string>("arg.llm_config", found);
++
++      if(!found) {
++         out->fatal(CALL_INFO_LONG, -1, "LLM config file not set\n");
++      }
++
++      std::ifstream config_file(config_path);
++      nlohmann::json config = nlohmann::json::parse(config_file);
++
++      uint64_t max_ctx = config["max_position_embeddings"];
++
++      if(max_ctx < seq_len) {
++         out->fatal(CALL_INFO_LONG, -1, "Sequence length (%u) is greater than context length(%u): %s\n", seq_len, max_ctx);
++      }
++
++      hidden_size = config["hidden_size"];
++      intermediate_size = config["intermediate_size"];
++      num_hidden_layers = config["num_hidden_layers"];
++      num_key_value_heads = config["num_key_value_heads"];
++      uint64_t num_key_value_heads = config["num_key_value_heads"];
++      uint64_t num_attention_heads = config["num_attention_heads"];
++
++
++      std::string dtype_s = config["torch_dtype"];
++      if(dtype_s == "float32" || dtype_s == "float") {
++         dtype = INT32_T;
++      } else if (dtype_s == "float16" || dtype_s == "half" || dtype_s == "bfloat16") {
++         dtype = INT16_T;
++      } else if (dtype_s == "float8") {
++         dtype = INT8_T;
++      } else {
++         out->fatal(CALL_INFO_LONG, -1, "Unknown dataype: %s\n", dtype_s);
++      }
++      vocab_size = config["vocab_size"];
++
++      const uint64_t dtype_size = sizeofDataType(dtype);
++
++      compute_time.resize(exec_stage_e::UNKNOWN,0);
++
++
++      std::map<compute_step_e, uint64_t> compute_map = get_compute_time(batch_size,
++                                                                        seq_len,
++                                                                        hidden_size,
++                                                                        num_hidden_layers,
++                                                                        num_key_value_heads,
++                                                                        num_attention_heads,
++                                                                        intermediate_size,
++                                                                        vocab_size,
++                                                                        dtype_size,
++                                                                        dram_bw,
++                                                                        peak_flop,
++                                                                        1);
++
++
++      compute_time.resize(exec_stage_e::UNKNOWN,0);
++      compute_time[exec_stage_e::EMBD] = (my_rank == 0 ? compute_map[compute_step_e::TOKENIZE] : 0) +
++                                         compute_map[compute_step_e::EMBD];
++
++      compute_time[exec_stage_e::TB_FWD] = compute_map[compute_step_e::ATT_FWD] + compute_map[compute_step_e::MLP_FWD];
++
++      compute_time[exec_stage_e::OUT] =   compute_map[compute_step_e::LOGITS] +
++                                          compute_map[compute_step_e::FWD_MAX] +
++                                          compute_map[compute_step_e::FWD_SOFTMAX] +
++                                          compute_map[compute_step_e::LOSS] +
++                                          compute_map[compute_step_e::BCK_LINEAR] +
++                                          compute_map[compute_step_e::BCK_NORM];
++      compute_time[exec_stage_e::TB_BCK] = compute_map[compute_step_e::MLP_BCK] +
++                                           compute_map[compute_step_e::ATT_BCK];
++      compute_time[exec_stage_e::UPDATE] = compute_map[compute_step_e::UPDATE] / n_ranks;
++
++      num_params.resize(exec_stage_e::UPDATE,0);
++      num_params[exec_stage_e::EMBD] = vocab_size * hidden_size;
++      num_params[exec_stage_e::TB_FWD] = hidden_size * (2 + 2*hidden_size + 2*hidden_size/num_key_value_heads + 3*intermediate_size);
++      num_params[exec_stage_e::OUT] = 2 * hidden_size * (1 + vocab_size);
++      num_params[exec_stage_e::TB_BCK] = hidden_size * (2 + 2*hidden_size + 2*hidden_size/num_key_value_heads + 3*intermediate_size);
++
++      if(my_rank == 0) {
++         for(int i = 0; i < exec_stage_e::UNKNOWN; i++)
++            out->verbose(CALL_INFO, 5, 0, "Compute time[%s]: %lu\n",
++               exec_stage_s[i].c_str(), compute_time[i]);
++      }
++   }
++
++
++void EmberLLMDataParallelismGenerator::allgather(std::queue<EmberEvent*>& evQ, uint64_t count, PayloadDataType dtype, Communicator comm)  {
++   uint64_t sent = 0;
++   while(sent < count) {
++      int to_send = (count-sent) < max_buffer_capacity ? (count-sent) : max_buffer_capacity;
++      enQ_allgather(evQ, NULL, to_send, dtype, NULL, to_send, dtype, comm);
++      sent += to_send;
++   }
++}
++
++void EmberLLMDataParallelismGenerator::reduce(std::queue<EmberEvent*>& evQ, uint64_t count, PayloadDataType dtype, ReductionOperation op, int root, Communicator comm)  {
++   uint64_t sent = 0;
++   while(sent < count) {
++      int to_send = (count-sent) < max_buffer_capacity ? (count-sent) : max_buffer_capacity;
++      enQ_reduce(evQ, NULL, NULL, to_send, dtype, op, root, comm);
++      sent += to_send;
++   }
++}
++
++bool EmberLLMDataParallelismGenerator::generate(std::queue<EmberEvent*>& evQ) {
++   bool finish = false;
++   const uint64_t msg_size = num_params[current_stage]/n_ranks;
++
++   exec_stage_e next_stage = exec_stage_e::UNKNOWN;
++
++   switch (current_stage) {
++      case exec_stage_e::INIT:
++         next_stage =  exec_stage_e::EMBD;
++         step_index = 0;
++         layer_index = 0;
++         break;
++      case exec_stage_e::EMBD:
++         allgather(evQ, msg_size, dtype, GroupWorld);
++         next_stage = exec_stage_e::TB_FWD;
++         enQ_compute(evQ, compute_time[current_stage]);
++         break;
++      case exec_stage_e::TB_FWD: {
++         allgather(evQ, msg_size, dtype, GroupWorld);
++         layer_index++;
++         next_stage = (layer_index == num_hidden_layers) ? exec_stage_e::OUT : exec_stage_e::TB_FWD;
++         enQ_compute(evQ, compute_time[current_stage]);
++         break;
++      }
++      case exec_stage_e::OUT: {
++         allgather(evQ, msg_size, dtype, GroupWorld);
++         next_stage =  exec_stage_e::TB_BCK;
++         layer_index = 0;
++
++         enQ_compute(evQ, compute_time[current_stage]);
++
++         for(int r = 0; r < n_ranks; r++) {
++            reduce(evQ, num_params[current_stage]/n_ranks, dtype, MP::SUM, r, GroupWorld);
++         }
++         break;
++      }
++      case exec_stage_e::TB_BCK: {
++         allgather(evQ, msg_size, dtype, GroupWorld);
++         layer_index++;
++         next_stage = (layer_index == num_hidden_layers) ? exec_stage_e::UPDATE : exec_stage_e::TB_BCK;
++
++         enQ_compute(evQ, compute_time[current_stage]);
++
++         for(int r = 0; r < n_ranks; r++) {
++            reduce(evQ, num_params[current_stage]/n_ranks, dtype, MP::SUM, r, GroupWorld);
++         }
++         break;
++      }
++      case exec_stage_e::UPDATE:
++         layer_index = 0;
++         step_index+= n_ranks;
++         next_stage = exec_stage_e::EMBD;
++         if(step_index >= n_step)
++            finish = true;
++
++         enQ_compute(evQ, compute_time[current_stage]);
++         break;
++      default:
++         out->fatal(CALL_INFO_LONG, -1, "Unknown execution stage: %d\n", current_stage);
++         break;
++   }
++
++   if(verbose && my_rank == 0)
++      out->verbose(CALL_INFO, 10, 0, "Current stage: %s\tnext stage: %s\tlayer index:%u\tstep index:%u\n",
++               exec_stage_s[current_stage].c_str(), exec_stage_s[next_stage].c_str(), layer_index, step_index);
++
++   current_stage = next_stage;
++
++   return finish;
++}
+diff --git a/src/sst/elements/ember/mpi/motifs/llm/emberLLMDataParallelism.h b/src/sst/elements/ember/mpi/motifs/llm/emberLLMDataParallelism.h
+new file mode 100644
+index 000000000..3ed58f85a
+--- /dev/null
++++ b/src/sst/elements/ember/mpi/motifs/llm/emberLLMDataParallelism.h
+@@ -0,0 +1,126 @@
++/*
++ Copyright (c) 2025 imec v.z.w.
++ All Rights Reserved.
++
++ Redistribution and use in source and binary forms, with or without
++ modification, are permitted provided that the following conditions are
++ met: redistributions of source code must retain the above copyright
++ notice, this list of conditions and the following disclaimer;
++ redistributions in binary form must reproduce the above copyright
++ notice, this list of conditions and the following disclaimer in the
++ documentation and/or other materials provided with the distribution;
++ neither the name of the copyright holders nor the names of its
++ contributors may be used to endorse or promote products derived from
++ this software without specific prior written permission.
++
++ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
++ "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
++ LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
++ A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
++ OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
++ SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
++ LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
++ DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
++ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
++ (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
++ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++
++ Author: Erwan Lenormand (imec/CSA)
++*/
++#ifndef EMBERLLMDataParallelism_H
++#define EMBERLLMDataParallelism_H
++
++#include "mpi/embermpigen.h"
++
++namespace SST {
++namespace Ember {
++
++class EmberLLMDataParallelismGenerator : public EmberMessagePassingGenerator {
++public:
++   SST_ELI_REGISTER_SUBCOMPONENT(
++         EmberLLMDataParallelismGenerator,
++         "ember",
++         "LLMDataParallelismMotif",
++         SST_ELI_ELEMENT_VERSION(1,0,0),
++         "Performs a Full Shared Data Parallel communication Motif",
++         SST::Ember::EmberLLMDataParallelismGenerator
++         )
++
++   SST_ELI_DOCUMENT_PARAMS(
++         {  "arg.batch_size",      "Number of sequence processed in parallel", "1" },
++         {  "arg.sequence_len",    "Number of token per sequence", "8192" },
++         {  "arg.n_step",          "Number of steps", "128" },
++
++         { "args.dram_bw",         "DRAM bandwidth in byte/second", "1555000000000"},
++         { "args.peak_flop",       "Peak compute throughput @ targeted data type", "78000000000000"},
++
++         {  "arg.llm_config",      "Configuration file of the Large Language Model", NULL },
++         {  "arg.verbose",         "Enable debug prints", "0" }
++         )
++
++   SST_ELI_DOCUMENT_STATISTICS(
++         { "time-Init", "Time spent in Init event",          "ns",  0},
++         { "time-Finalize", "Time spent in Finalize event",  "ns", 0},
++         { "time-Rank", "Time spent in Rank event",          "ns", 0},
++         { "time-Size", "Time spent in Size event",          "ns", 0},
++         { "time-Send", "Time spent in Recv event",          "ns", 0},
++         { "time-Recv", "Time spent in Recv event",          "ns", 0},
++         { "time-Irecv", "Time spent in Irecv event",        "ns", 0},
++         { "time-Isend", "Time spent in Isend event",        "ns", 0},
++         { "time-Wait", "Time spent in Wait event",          "ns", 0},
++         { "time-Waitall", "Time spent in Waitall event",    "ns", 0},
++         { "time-Waitany", "Time spent in Waitany event",    "ns", 0},
++         { "time-Compute", "Time spent in Compute event",    "ns", 0},
++         { "time-Barrier", "Time spent in Barrier event",    "ns", 0},
++         { "time-Alltoallv", "Time spent in Alltoallv event", "ns", 0},
++         { "time-Alltoall", "Time spent in Alltoall event",  "ns", 0},
++         { "time-Allreduce", "Time spent in Allreduce event", "ns", 0},
++         { "time-Reduce", "Time spent in Reduce event",      "ns", 0},
++         { "time-Bcast", "Time spent in Bcast event",        "ns", 0},
++         { "time-Gettime", "Time spent in Gettime event",    "ns", 0},
++         { "time-Commsplit", "Time spent in Commsplit event", "ns", 0},
++         { "time-Commcreate", "Time spent in Commcreate event", "ns", 0})
++
++public:
++   EmberLLMDataParallelismGenerator(SST::ComponentId_t id, Params& params);
++   bool generate(std::queue<EmberEvent*>& evQ);
++
++private:
++   enum exec_stage_e : uint8_t {INIT, EMBD, TB_FWD, OUT, TB_BCK, UPDATE, UNKNOWN};
++
++   void allgather(std::queue<EmberEvent*>& evQ, uint64_t count, PayloadDataType dtype, Communicator comm);
++   void reduce(std::queue<EmberEvent*>& evQ, uint64_t count, PayloadDataType dtype, ReductionOperation op, int root, Communicator comm);
++
++   uint64_t batch_size;
++   uint64_t seq_len;
++   uint64_t n_step;
++
++   uint64_t hidden_size;
++   uint64_t intermediate_size;
++   uint64_t num_hidden_layers;
++   uint64_t vocab_size;
++   uint64_t num_key_value_heads;
++
++   PayloadDataType dtype;
++
++   exec_stage_e current_stage;
++   uint32_t layer_index;
++   uint32_t step_index;
++
++   std::vector<uint64_t> compute_time;
++   std::vector<uint64_t> num_params;
++   double dram_bw; //byte/ns
++   double peak_flop; // flop/ns
++
++   int my_rank;
++   uint32_t n_ranks;
++
++   Output * out;
++   int verbose;
++};
++
++}
++}
++
++
++#endif /* end of #ifndef EMBERLLMDataParallelism_H scope */
+diff --git a/src/sst/elements/ember/mpi/motifs/llm/emberLLMPipelineParallelism.cc b/src/sst/elements/ember/mpi/motifs/llm/emberLLMPipelineParallelism.cc
+new file mode 100644
+index 000000000..4d9cbc897
+--- /dev/null
++++ b/src/sst/elements/ember/mpi/motifs/llm/emberLLMPipelineParallelism.cc
+@@ -0,0 +1,310 @@
++/*
++ Copyright (c) 2025 imec v.z.w.
++ All Rights Reserved.
++
++ Redistribution and use in source and binary forms, with or without
++ modification, are permitted provided that the following conditions are
++ met: redistributions of source code must retain the above copyright
++ notice, this list of conditions and the following disclaimer;
++ redistributions in binary form must reproduce the above copyright
++ notice, this list of conditions and the following disclaimer in the
++ documentation and/or other materials provided with the distribution;
++ neither the name of the copyright holders nor the names of its
++ contributors may be used to endorse or promote products derived from
++ this software without specific prior written permission.
++
++ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
++ "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
++ LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
++ A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
++ OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
++ SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
++ LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
++ DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
++ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
++ (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
++ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++
++ Author: Erwan Lenormand (imec/CSA)
++*/
++#include <fstream>
++#include <sst/core/sst_config.h>
++#include "../../../../mercury/external/json.hpp"
++#include "emberLLMPipelineParallelism.h"
++
++#include "analytical_model.hpp"
++
++using namespace SST::Ember;
++
++const static std::vector<std::string> exec_stage_s = {
++   "INIT",
++   "EMBD",
++   "TB_FWD",
++   "OUT",
++   "TB_BCK",
++   "UPDATE",
++   "UNKNOWN"
++};
++
++#define TOKENIZE_DURATION 1e6
++
++const static int max_buffer_capacity = 1*1024*1024*1024;
++
++EmberLLMPipelineParallelismGenerator::EmberLLMPipelineParallelismGenerator(SST::ComponentId_t id, Params& params) :
++   EmberMessagePassingGenerator(id, params, "LLMPipelineParallelism" ),
++   current_stage(INIT),
++   step_idx_fwd(0),
++   step_idx_bck(0){
++
++      my_rank = rank();
++      n_ranks = size();
++
++      verbose = params.find("arg.verbose", 0);
++      std::ostringstream prefix;
++      prefix << "[@t] rank:" << my_rank << " EmberEngine:" << getMotifName() << ":@p:@l: ";
++      out = new Output(prefix.str().c_str(), verbose, 0, Output::STDOUT);
++
++      batch_size = params.find<uint64_t>("arg.batch_size", 1);
++      seq_len = params.find<uint64_t>("arg.sequence_len", 8192);
++      n_step = params.find<uint64_t>("arg.n_step", 128);
++
++      dram_bw = (double)params.find<uint64_t>("arg.dram_bw", 1555000000000UL) / 1e9;
++      peak_flop = (double)params.find<uint64_t>("args.peak_flop", 78000000000000UL) / 1e9;
++
++      bool found = false;
++      std::string config_path = params.find<std::string>("arg.llm_config", found);
++
++      if(!found) {
++         out->fatal(CALL_INFO_LONG, -1, "LLM config file not set\n");
++      }
++
++      std::ifstream config_file(config_path);
++      nlohmann::json config = nlohmann::json::parse(config_file);
++
++      uint64_t max_ctx = config["max_position_embeddings"];
++
++      if(max_ctx < seq_len) {
++         out->fatal(CALL_INFO_LONG, -1, "Sequence length (%u) is greater than context length(%u): %s\n", seq_len, max_ctx);
++      }
++
++      hidden_size = config["hidden_size"];
++      intermediate_size = config["intermediate_size"];
++      num_hidden_layers = config["num_hidden_layers"];
++
++      uint64_t num_key_value_heads = config["num_key_value_heads"];
++      uint64_t num_attention_heads = config["num_attention_heads"];
++
++
++      std::string dtype_s = config["torch_dtype"];
++      if(dtype_s == "float32" || dtype_s == "float") {
++         dtype = INT32_T;
++      } else if (dtype_s == "float16" || dtype_s == "half" || dtype_s == "bfloat16") {
++         dtype = INT16_T;
++      } else if (dtype_s == "float8") {
++         dtype = INT8_T;
++      } else {
++         out->fatal(CALL_INFO_LONG, -1, "Unknown dataype: %s\n", dtype_s);
++      }
++      vocab_size = config["vocab_size"];
++
++      if(n_ranks < 3){
++         out->fatal(CALL_INFO_LONG, -1, "Number of ranks must be at least 3! n_ranks = %u\n", n_ranks);
++      }
++
++      // First rank performs the embeddings layer and updates the weights
++      // Last rank performs the cross entropy loss
++      if(my_rank == 0 || my_rank == n_ranks-1) {
++         n_layer_to_execute = 0;
++      } else {
++         n_layer_to_execute = 1 + ((num_hidden_layers - 1) / (n_ranks - 2));
++         n_layer_to_execute = ((my_rank * n_layer_to_execute) > num_hidden_layers) ? (num_hidden_layers - (n_layer_to_execute * (my_rank - 1))) : n_layer_to_execute;
++      }
++
++      const uint64_t dtype_size = sizeofDataType(dtype);
++
++      compute_time.resize(exec_stage_e::UNKNOWN,0);
++
++
++      std::map<compute_step_e, uint64_t> compute_map = get_compute_time(batch_size,
++                                                                        seq_len,
++                                                                        hidden_size,
++                                                                        num_hidden_layers,
++                                                                        num_key_value_heads,
++                                                                        num_attention_heads,
++                                                                        intermediate_size,
++                                                                        vocab_size,
++                                                                        dtype_size,
++                                                                        dram_bw,
++                                                                        peak_flop,
++                                                                        1);
++
++
++      compute_time.resize(exec_stage_e::UNKNOWN,0);
++      compute_time[exec_stage_e::EMBD] = (my_rank == 0 ? compute_map[compute_step_e::TOKENIZE] : 0) +
++                                         compute_map[compute_step_e::EMBD];
++
++      compute_time[exec_stage_e::TB_FWD] = compute_map[compute_step_e::ATT_FWD] + compute_map[compute_step_e::MLP_FWD];
++
++      compute_time[exec_stage_e::OUT] =   compute_map[compute_step_e::LOGITS] +
++                                          compute_map[compute_step_e::FWD_MAX] +
++                                          compute_map[compute_step_e::FWD_SOFTMAX] +
++                                          compute_map[compute_step_e::LOSS] +
++                                          compute_map[compute_step_e::BCK_LINEAR] +
++                                          compute_map[compute_step_e::BCK_NORM];
++      compute_time[exec_stage_e::TB_BCK] = compute_map[compute_step_e::MLP_BCK] +
++                                           compute_map[compute_step_e::ATT_BCK];
++      compute_time[exec_stage_e::UPDATE] = compute_map[compute_step_e::UPDATE];
++
++
++
++      compute_time[exec_stage_e::TB_FWD] *= n_layer_to_execute;
++      compute_time[exec_stage_e::TB_BCK] *= n_layer_to_execute;
++      for(int i = 0; i < exec_stage_e::UNKNOWN; i++)
++         out->verbose(CALL_INFO, 5, 0, "Compute time[%s]: %lu\n",
++               exec_stage_s[i].c_str(), compute_time[i]);
++      }
++
++#define FWD_PATH 0
++#define BCK_PATH 1
++
++static uint32_t create_tag(const uint32_t step, const uint32_t path) {
++   uint32_t tag = path&0x1;
++   tag |= step << 1;
++   return tag;
++}
++
++void EmberLLMPipelineParallelismGenerator::isend(std::queue<EmberEvent*>& evQ, uint64_t count, PayloadDataType dtype, int dst, uint32_t tag, Communicator comm, MessageRequest &req)  {
++   uint64_t sent = 0;
++   uint32_t buf_idx = 0;
++   while(sent < count) {
++      tag = tag << 8 | (buf_idx & 0xff);
++      int to_send = (count-sent) < max_buffer_capacity ? (count-sent) : max_buffer_capacity;
++      enQ_isend(evQ, NULL, to_send, dtype, dst, tag, comm, &req);
++      sent += to_send;
++   }
++}
++
++void EmberLLMPipelineParallelismGenerator::recv(std::queue<EmberEvent*>& evQ, uint64_t count, PayloadDataType dtype, int src, uint32_t tag, Communicator comm)  {
++   uint64_t received = 0;
++   uint32_t buf_idx = 0;
++   while(received < count) {
++      int to_receive = (count-received) < max_buffer_capacity ? (count-received) : max_buffer_capacity;
++      tag = tag << 8 | (buf_idx & 0xff);
++      enQ_recv(evQ, NULL, to_receive, dtype, src, tag, comm);
++      received += to_receive;
++   }
++}
++
++bool EmberLLMPipelineParallelismGenerator::generate(std::queue<EmberEvent*>& evQ) {
++   bool finish = false;
++   const uint64_t msg_size = batch_size*seq_len*hidden_size;
++
++   exec_stage_e next_stage = exec_stage_e::UNKNOWN;
++
++   enQ_compute(evQ, compute_time[current_stage]);
++
++   switch (current_stage) {
++      case exec_stage_e::INIT:
++         if(my_rank == 0) {
++            next_stage = exec_stage_e::EMBD;
++         } else if(my_rank == n_ranks - 1) {
++            next_stage = exec_stage_e::OUT;
++         } else {
++            next_stage = exec_stage_e::TB_FWD;
++         }
++         break;
++      case exec_stage_e::EMBD: {
++         uint32_t tag = create_tag(step_idx_fwd, FWD_PATH);
++         isend(evQ, msg_size, dtype, my_rank+1, tag, GroupWorld, req);
++
++         step_idx_fwd++;
++         if(step_idx_fwd < n_ranks) {
++            next_stage = current_stage;
++         } else {
++            next_stage = exec_stage_e::UPDATE;
++         }
++         break;
++      }
++      case exec_stage_e::TB_FWD: {
++         uint32_t tag = create_tag(step_idx_fwd, FWD_PATH);
++         recv(evQ, msg_size, dtype, my_rank-1, tag, GroupWorld);
++
++         tag = create_tag(step_idx_fwd, FWD_PATH);
++         isend(evQ, msg_size, dtype, my_rank+1, tag, GroupWorld, req);
++         step_idx_fwd++;
++
++         if(step_idx_fwd < (n_ranks-my_rank) && step_idx_fwd < n_step) {
++            next_stage = current_stage;
++         } else {
++            next_stage = exec_stage_e::TB_BCK;
++         }
++         break;
++      }
++      case exec_stage_e::OUT: {
++         uint32_t tag = create_tag(step_idx_fwd, FWD_PATH);
++         recv(evQ, msg_size, dtype, my_rank-1, tag, GroupWorld);
++
++         tag = create_tag(step_idx_bck, BCK_PATH);
++         isend(evQ, msg_size, dtype, my_rank-1, tag, GroupWorld, req);
++
++         step_idx_fwd++;
++         step_idx_bck++;
++
++         if(step_idx_bck == n_step) {
++            finish = true;
++         }
++
++         next_stage = current_stage;
++         break;
++      }
++      case exec_stage_e::TB_BCK: {
++         uint32_t tag = create_tag(step_idx_bck, BCK_PATH);
++         recv(evQ, msg_size, dtype, my_rank+1, tag, GroupWorld);
++
++         tag = create_tag(step_idx_bck, BCK_PATH);
++         isend(evQ, msg_size, dtype, my_rank-1, tag, GroupWorld, req);
++
++         step_idx_bck++;
++
++         int64_t limit = (n_step - (n_ranks - my_rank));
++         limit = (limit > 0) ? limit : 0;
++         if(step_idx_bck > limit) {
++            next_stage = current_stage;
++         } else {
++            next_stage = exec_stage_e::TB_FWD;
++         }
++
++         if(step_idx_bck == n_step)
++            finish = true;
++         break;
++      }
++      case exec_stage_e::UPDATE: {
++         uint32_t tag = create_tag(step_idx_bck, BCK_PATH);
++         recv(evQ, msg_size, dtype, my_rank+1, tag, GroupWorld);
++         step_idx_bck++;
++
++         int64_t limit = (n_step - (n_ranks - my_rank));
++         limit = (limit > 0) ? limit : 0;
++         if(step_idx_bck > limit) {
++            next_stage = current_stage;
++         } else {
++            next_stage = exec_stage_e::EMBD;
++         }
++
++         if(step_idx_bck == n_step)
++            finish = true;
++         break;
++      }
++      default:
++         out->fatal(CALL_INFO_LONG, -1, "Unknown execution stage: %d\n", current_stage);
++         break;
++   }
++
++   if(verbose)
++      out->verbose(CALL_INFO, 10, 0, "Current stage: %s\tnext stage: %s\tstep index:%u/%u\n",
++               exec_stage_s[current_stage].c_str(), exec_stage_s[next_stage].c_str(), step_idx_fwd, step_idx_bck);
++
++   current_stage = next_stage;
++
++   return finish;
++}
+diff --git a/src/sst/elements/ember/mpi/motifs/llm/emberLLMPipelineParallelism.h b/src/sst/elements/ember/mpi/motifs/llm/emberLLMPipelineParallelism.h
+new file mode 100644
+index 000000000..f2395683f
+--- /dev/null
++++ b/src/sst/elements/ember/mpi/motifs/llm/emberLLMPipelineParallelism.h
+@@ -0,0 +1,128 @@
++/*
++ Copyright (c) 2025 imec v.z.w.
++ All Rights Reserved.
++
++ Redistribution and use in source and binary forms, with or without
++ modification, are permitted provided that the following conditions are
++ met: redistributions of source code must retain the above copyright
++ notice, this list of conditions and the following disclaimer;
++ redistributions in binary form must reproduce the above copyright
++ notice, this list of conditions and the following disclaimer in the
++ documentation and/or other materials provided with the distribution;
++ neither the name of the copyright holders nor the names of its
++ contributors may be used to endorse or promote products derived from
++ this software without specific prior written permission.
++
++ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
++ "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
++ LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
++ A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
++ OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
++ SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
++ LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
++ DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
++ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
++ (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
++ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++
++ Author: Erwan Lenormand (imec/CSA)
++*/
++#ifndef EMBERLLMPipelineParallelism_H
++#define EMBERLLMPipelineParallelism_H
++
++#include "mpi/embermpigen.h"
++
++namespace SST {
++namespace Ember {
++
++class EmberLLMPipelineParallelismGenerator : public EmberMessagePassingGenerator {
++public:
++   SST_ELI_REGISTER_SUBCOMPONENT(
++         EmberLLMPipelineParallelismGenerator,
++         "ember",
++         "LLMPipelineParallelismMotif",
++         SST_ELI_ELEMENT_VERSION(1,0,0),
++         "Performs an 1F1B  communication Motif",
++         SST::Ember::EmberLLMPipelineParallelismGenerator
++         )
++
++   SST_ELI_DOCUMENT_PARAMS(
++         {  "arg.batch_size",      "Number of sequence processed in parallel", "1" },
++         {  "arg.sequence_len",    "Number of token per sequence", "8192" },
++         {  "arg.n_step",          "Number of steps", "128" },
++
++         { "args.dram_bw",         "DRAM bandwidth in byte/second", "1555000000000"},
++         { "args.peak_flop",       "Peak compute throughput @ targeted data type", "78000000000000"},
++
++         {  "arg.llm_config",      "Configuration file of the Large Language Model", NULL },
++         {  "arg.verbose",         "Enable debug prints", "0" }
++         )
++
++   SST_ELI_DOCUMENT_STATISTICS(
++         { "time-Init", "Time spent in Init event",          "ns",  0},
++         { "time-Finalize", "Time spent in Finalize event",  "ns", 0},
++         { "time-Rank", "Time spent in Rank event",          "ns", 0},
++         { "time-Size", "Time spent in Size event",          "ns", 0},
++         { "time-Send", "Time spent in Recv event",          "ns", 0},
++         { "time-Recv", "Time spent in Recv event",          "ns", 0},
++         { "time-Irecv", "Time spent in Irecv event",        "ns", 0},
++         { "time-Isend", "Time spent in Isend event",        "ns", 0},
++         { "time-Wait", "Time spent in Wait event",          "ns", 0},
++         { "time-Waitall", "Time spent in Waitall event",    "ns", 0},
++         { "time-Waitany", "Time spent in Waitany event",    "ns", 0},
++         { "time-Compute", "Time spent in Compute event",    "ns", 0},
++         { "time-Barrier", "Time spent in Barrier event",    "ns", 0},
++         { "time-Alltoallv", "Time spent in Alltoallv event", "ns", 0},
++         { "time-Alltoall", "Time spent in Alltoall event",  "ns", 0},
++         { "time-Allreduce", "Time spent in Allreduce event", "ns", 0},
++         { "time-Reduce", "Time spent in Reduce event",      "ns", 0},
++         { "time-Bcast", "Time spent in Bcast event",        "ns", 0},
++         { "time-Gettime", "Time spent in Gettime event",    "ns", 0},
++         { "time-Commsplit", "Time spent in Commsplit event", "ns", 0},
++         { "time-Commcreate", "Time spent in Commcreate event", "ns", 0})
++
++public:
++   EmberLLMPipelineParallelismGenerator(SST::ComponentId_t id, Params& params);
++   bool generate(std::queue<EmberEvent*>& evQ);
++
++private:
++   enum exec_stage_e : uint8_t {INIT, EMBD, TB_FWD, OUT, TB_BCK, UPDATE, UNKNOWN};
++
++   void isend(std::queue<EmberEvent*>& evQ, uint64_t count, PayloadDataType dtype, int dst, uint32_t tag, Communicator comm, MessageRequest &req);
++   void recv(std::queue<EmberEvent*>& evQ, uint64_t count, PayloadDataType dtype, int src, uint32_t tag, Communicator comm);
++
++   uint64_t batch_size;
++   uint64_t seq_len;
++   uint64_t n_step;
++
++   uint64_t hidden_size;
++   uint64_t intermediate_size;
++   uint64_t num_hidden_layers;
++   uint64_t vocab_size;
++
++   PayloadDataType dtype;
++
++   exec_stage_e current_stage;
++   uint32_t step_idx_fwd;
++   uint32_t step_idx_bck;
++
++   std::vector<uint64_t> compute_time;
++   double dram_bw; //byte/ns
++   double peak_flop; // flop/ns
++
++   int my_rank;
++   uint32_t n_ranks;
++
++   uint64_t n_layer_to_execute;
++
++   MessageRequest req;
++
++   Output* out;
++   int verbose;
++};
++
++}
++}
++
++
++#endif /* end of #ifndef EMBERLLMPipelineParallelism_H scope */
+diff --git a/src/sst/elements/ember/mpi/motifs/llm/emberLLMTensorParallelism.cc b/src/sst/elements/ember/mpi/motifs/llm/emberLLMTensorParallelism.cc
+new file mode 100644
+index 000000000..dd650e3ed
+--- /dev/null
++++ b/src/sst/elements/ember/mpi/motifs/llm/emberLLMTensorParallelism.cc
+@@ -0,0 +1,272 @@
++/*
++ Copyright (c) 2025 imec v.z.w.
++ All Rights Reserved.
++
++ Redistribution and use in source and binary forms, with or without
++ modification, are permitted provided that the following conditions are
++ met: redistributions of source code must retain the above copyright
++ notice, this list of conditions and the following disclaimer;
++ redistributions in binary form must reproduce the above copyright
++ notice, this list of conditions and the following disclaimer in the
++ documentation and/or other materials provided with the distribution;
++ neither the name of the copyright holders nor the names of its
++ contributors may be used to endorse or promote products derived from
++ this software without specific prior written permission.
++
++ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
++ "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
++ LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
++ A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
++ OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
++ SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
++ LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
++ DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
++ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
++ (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
++ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++
++ Author: Erwan Lenormand (imec/CSA)
++*/
++#include <fstream>
++#include <sst/core/sst_config.h>
++#include "../../../../mercury/external/json.hpp"
++#include "emberLLMTensorParallelism.h"
++
++#include "analytical_model.hpp"
++
++using namespace SST::Ember;
++
++const static std::vector<std::string> exec_stage_s = {
++   "INIT",
++   "TOKENIZE",
++   "EMBD",
++   "ATT_FWD",
++   "MLP_FWD",
++   "LOGITS",
++   "FWD_MAX",
++   "FWD_SOFTMAX",
++   "LOSS",
++   "BCK_LINEAR",
++   "BCK_NORM",
++   "MLP_BCK",
++   "ATT_BCK",
++   "UPDATE",
++   "UNKNOWN"
++};
++
++const static uint64_t max_buffer_capacity = 1*1024*1024*1024;
++
++EmberLLMTensorParallelismGenerator::EmberLLMTensorParallelismGenerator(SST::ComponentId_t id, Params& params) :
++   EmberMessagePassingGenerator(id, params, "LLMTensorParallelism" ),
++   current_stage(INIT),
++   layer_index(0),
++   step_index(0) {
++
++      my_rank = rank();
++      n_ranks = size();
++
++      verbose = params.find("arg.verbose", 0);
++      std::ostringstream prefix;
++      prefix << "[@t] rank:" << my_rank << " EmberEngine:" << getMotifName() << ":@p:@l: ";
++      out = new Output(prefix.str().c_str(), verbose, 0, Output::STDOUT);
++
++      batch_size = params.find<uint64_t>("arg.batch_size", 1);
++      seq_len = params.find<uint64_t>("arg.sequence_len", 8192);
++      n_step = params.find<uint64_t>("arg.n_step", 128);
++
++      dram_bw = (double)params.find<uint64_t>("arg.dram_bw", 1555000000000UL) / 1e9;
++      peak_flop = (double)params.find<uint64_t>("args.peak_flop", 78000000000000UL) / 1e9;
++
++      bool found = false;
++      std::string config_path = params.find<std::string>("arg.llm_config", found);
++
++      if(!found) {
++         out->fatal(CALL_INFO_LONG, -1, "LLM config file not set\n");
++      }
++
++      std::ifstream config_file(config_path);
++      nlohmann::json config = nlohmann::json::parse(config_file);
++
++      uint64_t max_ctx = config["max_position_embeddings"];
++
++      if(max_ctx < seq_len) {
++         out->fatal(CALL_INFO_LONG, -1, "Sequence length (%u) is greater than context length(%u): %s\n", seq_len, max_ctx);
++      }
++
++      hidden_size = config["hidden_size"];
++      intermediate_size = config["intermediate_size"];
++      num_hidden_layers = config["num_hidden_layers"];
++      uint64_t num_key_value_heads = config["num_key_value_heads"];
++      uint64_t num_attention_heads = config["num_attention_heads"];
++
++      std::string dtype_s = config["torch_dtype"];
++      if(dtype_s == "float32" || dtype_s == "float") {
++         dtype = INT32_T;
++      } else if (dtype_s == "float16" || dtype_s == "half" || dtype_s == "bfloat16") {
++         dtype = INT16_T;
++      } else if (dtype_s == "float8") {
++         dtype = INT8_T;
++      } else {
++         out->fatal(CALL_INFO_LONG, -1, "Unknown dataype: %s\n", dtype_s);
++      }
++      vocab_size = config["vocab_size"];
++
++      const uint64_t dtype_size = sizeofDataType(dtype);
++
++      std::map<compute_step_e, uint64_t> compute_map = get_compute_time(batch_size,
++                                                                        seq_len,
++                                                                        hidden_size,
++                                                                        num_hidden_layers,
++                                                                        num_key_value_heads,
++                                                                        num_attention_heads,
++                                                                        intermediate_size,
++                                                                        vocab_size,
++                                                                        dtype_size,
++                                                                        dram_bw,
++                                                                        peak_flop,
++                                                                        n_ranks);
++
++
++      compute_time.resize(exec_stage_e::UNKNOWN,0);
++      compute_time[exec_stage_e::TOKENIZE] = my_rank == 0 ? compute_map[compute_step_e::TOKENIZE] : 0;
++      compute_time[exec_stage_e::EMBD] = compute_map[compute_step_e::EMBD];
++      compute_time[exec_stage_e::ATT_FWD] = compute_map[compute_step_e::ATT_FWD];
++      compute_time[exec_stage_e::MLP_FWD] = compute_map[compute_step_e::MLP_FWD];
++      compute_time[exec_stage_e::LOGITS] = compute_map[compute_step_e::LOGITS];
++      compute_time[exec_stage_e::FWD_MAX] = compute_map[compute_step_e::FWD_MAX];
++      compute_time[exec_stage_e::FWD_SOFTMAX] = compute_map[compute_step_e::FWD_SOFTMAX];
++      compute_time[exec_stage_e::LOSS] =  compute_map[compute_step_e::LOSS];
++      compute_time[exec_stage_e::BCK_LINEAR] = compute_map[compute_step_e::BCK_LINEAR];
++      compute_time[exec_stage_e::BCK_NORM] = compute_map[compute_step_e::BCK_NORM];
++      compute_time[exec_stage_e::MLP_BCK] = compute_map[compute_step_e::MLP_BCK];
++      compute_time[exec_stage_e::ATT_BCK] = compute_map[compute_step_e::ATT_BCK];
++      compute_time[exec_stage_e::UPDATE] = compute_map[compute_step_e::UPDATE];
++
++      if(my_rank == 0) {
++         for(int i = 0; i < exec_stage_e::UNKNOWN; i++)
++            out->verbose(CALL_INFO, 5, 0, "Compute time[%s]: %lu\n",
++               exec_stage_s[i].c_str(), compute_time[i]);
++      }
++   }
++
++
++void EmberLLMTensorParallelismGenerator::bcast(std::queue<EmberEvent*>& evQ, uint64_t count, PayloadDataType dtype, int root, Communicator comm) {
++   uint64_t sent = 0;
++   while(sent < count) {
++      int to_send = (count-sent) < max_buffer_capacity ? (count-sent) : max_buffer_capacity;
++      enQ_bcast(evQ, NULL, to_send, dtype, root, comm);
++      sent += to_send;
++   }
++}
++
++void EmberLLMTensorParallelismGenerator::allgather(std::queue<EmberEvent*>& evQ, uint64_t count, PayloadDataType dtype, Communicator comm)  {
++   uint64_t sent = 0;
++   while(sent < count) {
++      int to_send = (count-sent) < max_buffer_capacity ? (count-sent) : max_buffer_capacity;
++      enQ_allgather(evQ, NULL, to_send, dtype, NULL, to_send, dtype, comm);
++      sent += to_send;
++   }
++}
++
++void EmberLLMTensorParallelismGenerator::allreduce(std::queue<EmberEvent*>& evQ, uint64_t count, PayloadDataType dtype,ReductionOperation op, Communicator comm)  {
++   uint64_t sent = 0;
++   while(sent < count) {
++      int to_send = (count-sent) < max_buffer_capacity ? (count-sent) : max_buffer_capacity;
++      enQ_allreduce(evQ, NULL, NULL, to_send, dtype, op, comm);
++      sent += to_send;
++   }
++}
++
++
++bool EmberLLMTensorParallelismGenerator::generate(std::queue<EmberEvent*>& evQ) {
++   bool finish = false;
++   uint64_t msg_size = batch_size*seq_len*hidden_size/n_ranks;
++
++   exec_stage_e next_stage = exec_stage_e::UNKNOWN;
++
++   enQ_compute(evQ, compute_time[current_stage]);
++   switch (current_stage) {
++      case INIT:
++         next_stage = exec_stage_e::TOKENIZE;
++         step_index = 0;
++         break;
++      case TOKENIZE: {
++         layer_index = 0;
++         bcast(evQ, batch_size*seq_len, UINT32_T, 0, GroupWorld);
++         next_stage = exec_stage_e::EMBD;
++         break;
++      }
++      case exec_stage_e::EMBD:
++         allgather(evQ, msg_size, dtype, GroupWorld);
++         next_stage = exec_stage_e::ATT_FWD;
++         break;
++      case exec_stage_e::ATT_FWD:
++         allreduce(evQ, msg_size, dtype, Hermes::MP::SUM, GroupWorld);
++         next_stage = exec_stage_e::MLP_FWD;
++         break;
++      case exec_stage_e::MLP_FWD:
++         layer_index++;
++         allreduce(evQ, msg_size, dtype, Hermes::MP::SUM, GroupWorld);
++         next_stage = (layer_index == num_hidden_layers) ? exec_stage_e::LOGITS : exec_stage_e::ATT_FWD;
++         break;
++      case exec_stage_e::LOGITS:
++         allgather(evQ, msg_size, dtype, GroupWorld);
++         next_stage = exec_stage_e::FWD_MAX;
++         break;
++      case exec_stage_e::FWD_MAX:
++         msg_size =  batch_size*seq_len/n_ranks;
++         allreduce(evQ, msg_size, INT32_T, Hermes::MP::MAX, GroupWorld);
++         next_stage = exec_stage_e::FWD_SOFTMAX;
++         break;
++      case exec_stage_e::FWD_SOFTMAX:
++         msg_size = 2*batch_size*seq_len/n_ranks;
++         allreduce(evQ, msg_size, INT32_T, Hermes::MP::SUM, GroupWorld);
++         next_stage = exec_stage_e::LOSS;
++         break;
++      case exec_stage_e::LOSS:
++         msg_size = batch_size*seq_len*vocab_size/n_ranks;
++         allreduce(evQ, msg_size, dtype, Hermes::MP::SUM, GroupWorld);
++         next_stage = exec_stage_e::BCK_LINEAR;
++         layer_index = 0;
++         break;
++      case exec_stage_e::BCK_LINEAR:
++         allreduce(evQ, msg_size, dtype, Hermes::MP::SUM, GroupWorld);
++         next_stage = exec_stage_e::BCK_NORM;
++         break;
++      case exec_stage_e::BCK_NORM:
++         allgather(evQ, msg_size, dtype, GroupWorld);
++         next_stage = exec_stage_e::MLP_BCK;
++         break;
++
++      case exec_stage_e::MLP_BCK:
++         next_stage = exec_stage_e::ATT_BCK;
++         allreduce(evQ, msg_size, dtype, Hermes::MP::SUM, GroupWorld);
++         break;
++      case exec_stage_e::ATT_BCK:
++         layer_index++;
++         allreduce(evQ, msg_size, dtype, Hermes::MP::SUM, GroupWorld);
++         next_stage = (layer_index == num_hidden_layers) ? exec_stage_e::UPDATE : exec_stage_e::MLP_BCK;
++         break;
++
++      case exec_stage_e::UPDATE:
++         layer_index = 0;
++         next_stage = exec_stage_e::TOKENIZE;
++         step_index++;
++         if(step_index == n_step) {
++            finish = true;
++         }
++         break;
++      default:
++         out->fatal(CALL_INFO_LONG, -1, "Unknown execution stage: %d\n", current_stage);
++         break;
++   }
++
++   if(verbose && my_rank == 0)
++      out->verbose(CALL_INFO, 10, 0, "Current stage: %s\tnext stage: %s\tlayer index:%u\tstep index:%u\n",
++               exec_stage_s[current_stage].c_str(), exec_stage_s[next_stage].c_str(), layer_index, step_index);
++
++   current_stage = next_stage;
++
++
++   return finish;
++}
+diff --git a/src/sst/elements/ember/mpi/motifs/llm/emberLLMTensorParallelism.h b/src/sst/elements/ember/mpi/motifs/llm/emberLLMTensorParallelism.h
+new file mode 100644
+index 000000000..4d03b57df
+--- /dev/null
++++ b/src/sst/elements/ember/mpi/motifs/llm/emberLLMTensorParallelism.h
+@@ -0,0 +1,142 @@
++/*
++ Copyright (c) 2025 imec v.z.w.
++ All Rights Reserved.
++
++ Redistribution and use in source and binary forms, with or without
++ modification, are permitted provided that the following conditions are
++ met: redistributions of source code must retain the above copyright
++ notice, this list of conditions and the following disclaimer;
++ redistributions in binary form must reproduce the above copyright
++ notice, this list of conditions and the following disclaimer in the
++ documentation and/or other materials provided with the distribution;
++ neither the name of the copyright holders nor the names of its
++ contributors may be used to endorse or promote products derived from
++ this software without specific prior written permission.
++
++ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
++ "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
++ LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
++ A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
++ OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
++ SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
++ LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
++ DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
++ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
++ (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
++ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++
++ Author: Erwan Lenormand (imec/CSA)
++*/
++#ifndef EMBERLLMTensorParallelism_H
++#define EMBERLLMTensorParallelism_H
++
++#include "mpi/embermpigen.h"
++
++namespace SST {
++namespace Ember {
++
++class EmberLLMTensorParallelismGenerator : public EmberMessagePassingGenerator {
++public:
++   SST_ELI_REGISTER_SUBCOMPONENT(
++         EmberLLMTensorParallelismGenerator,
++         "ember",
++         "LLMTensorParallelismMotif",
++         SST_ELI_ELEMENT_VERSION(1,0,0),
++         "Performs a LLM Tensor Parallelism communication Motif",
++         SST::Ember::EmberLLMTensorParallelismGenerator
++         )
++
++   SST_ELI_DOCUMENT_PARAMS(
++         {  "arg.batch_size",      "Number of sequence processed in parallel", "1" },
++         {  "arg.sequence_len",    "Number of token per sequence", "8192" },
++         {  "arg.n_step",          "Number of steps", "128" },
++
++         { "args.dram_bw",         "DRAM bandwidth in byte/second", "1555000000000"},
++         { "args.peak_flop",       "Peak compute throughput @ targeted data type", "78000000000000"},
++
++         {  "arg.llm_config",      "Configuration file of the Large Language Model", NULL },
++         {  "arg.verbose",         "Enable debug prints", "0" }
++         )
++
++   SST_ELI_DOCUMENT_STATISTICS(
++         { "time-Init", "Time spent in Init event",          "ns",  0},
++         { "time-Finalize", "Time spent in Finalize event",  "ns", 0},
++         { "time-Rank", "Time spent in Rank event",          "ns", 0},
++         { "time-Size", "Time spent in Size event",          "ns", 0},
++         { "time-Send", "Time spent in Recv event",          "ns", 0},
++         { "time-Recv", "Time spent in Recv event",          "ns", 0},
++         { "time-Irecv", "Time spent in Irecv event",        "ns", 0},
++         { "time-Isend", "Time spent in Isend event",        "ns", 0},
++         { "time-Wait", "Time spent in Wait event",          "ns", 0},
++         { "time-Waitall", "Time spent in Waitall event",    "ns", 0},
++         { "time-Waitany", "Time spent in Waitany event",    "ns", 0},
++         { "time-Compute", "Time spent in Compute event",    "ns", 0},
++         { "time-Barrier", "Time spent in Barrier event",    "ns", 0},
++         { "time-Alltoallv", "Time spent in Alltoallv event", "ns", 0},
++         { "time-Alltoall", "Time spent in Alltoall event",  "ns", 0},
++         { "time-Allreduce", "Time spent in Allreduce event", "ns", 0},
++         { "time-Reduce", "Time spent in Reduce event",      "ns", 0},
++         { "time-Bcast", "Time spent in Bcast event",        "ns", 0},
++         { "time-Gettime", "Time spent in Gettime event",    "ns", 0},
++         { "time-Commsplit", "Time spent in Commsplit event", "ns", 0},
++         { "time-Commcreate", "Time spent in Commcreate event", "ns", 0})
++
++public:
++   EmberLLMTensorParallelismGenerator(SST::ComponentId_t id, Params& params);
++   bool generate(std::queue<EmberEvent*>& evQ);
++
++private:
++
++   void bcast(std::queue<EmberEvent*>& evQ, uint64_t count, PayloadDataType dtype, int root, Communicator comm);
++   void allgather(std::queue<EmberEvent*>& evQ, uint64_t count, PayloadDataType dtype, Communicator comm);
++   void allreduce(std::queue<EmberEvent*>& evQ, uint64_t count, PayloadDataType dtype,ReductionOperation op, Communicator comm);
++
++   enum exec_stage_e : uint8_t {
++      INIT,
++      TOKENIZE,
++      EMBD,
++      ATT_FWD,
++      MLP_FWD,
++      LOGITS,
++      FWD_MAX,
++      FWD_SOFTMAX,
++      LOSS,
++      BCK_LINEAR,
++      BCK_NORM,
++      MLP_BCK,
++      ATT_BCK,
++      UPDATE,
++      UNKNOWN
++   };
++
++   uint64_t batch_size;
++   uint64_t seq_len;
++   uint64_t n_step;
++
++   uint64_t hidden_size;
++   uint64_t intermediate_size;
++   uint64_t num_hidden_layers;
++   uint64_t vocab_size;
++
++   PayloadDataType dtype;
++
++   exec_stage_e current_stage;
++   uint32_t layer_index;
++   uint32_t step_index;
++
++   std::vector<uint64_t> compute_time;
++   double dram_bw; //byte/ns
++   double peak_flop; // flop/ns
++
++   int my_rank;
++   uint32_t n_ranks;
++
++   Output* out;
++   int verbose;
++};
++
++}
++}
++
++
++#endif /* end of #ifndef EMBERLLMTensorParallelism_H scope */
 diff --git a/src/sst/elements/merlin/pymerlin.py b/src/sst/elements/merlin/pymerlin.py
 index 7906e064d..dff0973ed 100644
 --- a/src/sst/elements/merlin/pymerlin.py

@@ -1,5 +1,5 @@
 Application-oriented system modeling and optimization
-=====================================================
+*****************************************************
 
 *i.e. how to lower an AI/ML model to simulated RISC-V hardware for system-level
 exploration*
