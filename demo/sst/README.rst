@@ -574,7 +574,7 @@ options can be passed via the command line:
 
 * --sequence_len SEQUENCE_LEN to define the number of tokens per sequence
 
-* --n_step N_STEP to define the number of batches to process (e.g., if N_STEP = 16 and DP
+* --n_batch N_BATCH to define the number of batches to process (e.g., if N_BATCH = 16 and DP
   = 4, each rank will process 4 batches).
 
 * --llm_config LLM_CONFIG to define the path to the LLM configuration file (configuration
@@ -605,27 +605,27 @@ options can be passed via the command line:
 
 .. code:: bash
 
-   sst training_llm.py -- --tp 8 --pp 1 --dp 1 --batch_size 16 --sequence_len 1024 --n_step 4 --llm_config small_config.json --log tp_logger --stats tp_stats.csv --topology single --verbose 10
+   sst --print-timing-info training_llm.py -- --tp 8 --pp 1 --dp 1 --batch_size 16 --sequence_len 1024 --n_batch 4 --llm_config small_config.json --log tp_logger --stats tp_stats.csv --topology single --verbose 10
 
 
 **Exploring Pipeline Parallelism**
 
 .. code:: bash
 
-   sst training_llm.py -- --tp 1 --pp 5 --dp 1 --batch_size 16 --sequence_len 1024 --n_step 16 --llm_config small_config.json --log pp_logger --stats pp_stats.csv --topology single --verbose 10
+   sst --print-timing-info training_llm.py -- --tp 1 --pp 5 --dp 1 --batch_size 16 --sequence_len 1024 --n_batch 16 --llm_config small_config.json --log pp_logger --stats pp_stats.csv --topology single --verbose 10
 
 
 **Exploring Data Parallelism**
 
 .. code:: bash
 
-   sst training_llm.py -- --tp 1 --pp 1 --dp 4 --batch_size 16 --sequence_len 1024 --n_step 16 --llm_config small_config.json --log tp_logger --stats tp_stats.csv --topology single --verbose 10
+   sst --print-timing-info training_llm.py -- --tp 1 --pp 1 --dp 4 --batch_size 16 --sequence_len 1024 --n_batch 16 --llm_config small_config.json --log tp_logger --stats tp_stats.csv --topology single --verbose 10
 
 
 **Exploring 3D Parallelism**
 
 .. code:: bash
 
-   sst training_llm.py -- --tp 4 --pp 5 --dp 4 --batch_size 16 --sequence_len 1024 --n_step 16 --llm_config small_config.json --log tp_logger --stats tp_stats.csv --topology fattree --verbose 10
+   sst --print-timing-info training_llm.py -- --tp 4 --pp 5 --dp 4 --batch_size 16 --sequence_len 1024 --n_batch 16 --llm_config small_config.json --log tp_logger --stats tp_stats.csv --topology fattree --verbose 10
 
 

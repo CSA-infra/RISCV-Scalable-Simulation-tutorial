@@ -317,7 +317,7 @@ index 000000000..469b1a724
 +#endif /* end of #ifndef ANALYTICAL_MODEL_H scope */
 diff --git a/src/sst/elements/ember/mpi/motifs/llm/emberLLM3DParallelism.cc b/src/sst/elements/ember/mpi/motifs/llm/emberLLM3DParallelism.cc
 new file mode 100644
-index 000000000..5f28b7ed7
+index 000000000..935f2fd58
 --- /dev/null
 +++ b/src/sst/elements/ember/mpi/motifs/llm/emberLLM3DParallelism.cc
 @@ -0,0 +1,537 @@
@@ -385,8 +385,8 @@ index 000000000..5f28b7ed7
 +   EmberMessagePassingGenerator(id, params, "LLM3DParallelism" ),
 +   current_stage(INIT),
 +   layer_index(0),
-+   step_idx_fwd(0),
-+   step_idx_bck(0),
++   batch_idx_fwd(0),
++   batch_idx_bck(0),
 +   tp(params.find<uint32_t>("arg.tp", 1)),
 +   pp(params.find<uint32_t>("arg.pp", 3)),
 +   dp(params.find<uint32_t>("arg.dp", 1)) {
@@ -406,10 +406,10 @@ index 000000000..5f28b7ed7
 +
 +      batch_size = params.find<uint64_t>("arg.batch_size", 1);
 +      seq_len = params.find<uint64_t>("arg.sequence_len", 8192);
-+      n_step = params.find<uint64_t>("arg.n_step", 128);
++      n_batch = params.find<uint64_t>("arg.n_batch", 128);
 +
 +
-+      n_step = 1 + (((int64_t)n_step) - 1)/dp;
++      n_batch = 1 + (((int64_t)n_batch) - 1)/dp;
 +
 +
 +      dram_bw = (double)params.find<uint64_t>("arg.dram_bw", 1555000000000UL) / 1e9;
@@ -546,9 +546,9 @@ index 000000000..5f28b7ed7
 +#define FWD_PATH 0
 +#define BCK_PATH 1
 +
-+static uint32_t create_tag(const uint32_t step, const uint32_t path) {
++static uint32_t create_tag(const uint32_t batch, const uint32_t path) {
 +   uint32_t tag = path&0x1;
-+   tag |= step << 1;
++   tag |= batch << 1;
 +   return tag;
 +}
 +
@@ -636,11 +636,11 @@ index 000000000..5f28b7ed7
 +
 +
 +         msg_size = batch_size*seq_len*hidden_size/tp;
-+         uint32_t tag = create_tag(step_idx_fwd, FWD_PATH);
++         uint32_t tag = create_tag(batch_idx_fwd, FWD_PATH);
 +         isend(evQ, msg_size, dtype, my_rank + tp, tag, GroupWorld, req);
 +
-+         step_idx_fwd++;
-+         if(step_idx_fwd < pp && step_idx_fwd < n_step) {
++         batch_idx_fwd++;
++         if(batch_idx_fwd < pp && batch_idx_fwd < n_batch) {
 +            next_stage = current_stage;
 +         } else {
 +            next_stage = exec_stage_e::UPDATE;
@@ -655,7 +655,7 @@ index 000000000..5f28b7ed7
 +         allgather(evQ, msg_size, dtype, dp_group[dp_grp_idx]);
 +
 +         if(layer_index == 0) {
-+            uint32_t tag = create_tag(step_idx_fwd, FWD_PATH);
++            uint32_t tag = create_tag(batch_idx_fwd, FWD_PATH);
 +            msg_size = batch_size*seq_len*hidden_size/tp;
 +            recv(evQ, msg_size, dtype, my_rank-tp, tag, GroupWorld);
 +         }
@@ -680,13 +680,13 @@ index 000000000..5f28b7ed7
 +
 +         if(layer_index == n_layer_to_execute) {
 +            layer_index = 0;
-+            uint32_t tag = create_tag(step_idx_fwd, FWD_PATH);
++            uint32_t tag = create_tag(batch_idx_fwd, FWD_PATH);
 +            uint64_t msg_size = (batch_size*seq_len*hidden_size)/tp;
 +            isend(evQ, msg_size, dtype, my_rank + tp, tag, GroupWorld, req);
 +
-+            step_idx_fwd++;
++            batch_idx_fwd++;
 +
-+            if(step_idx_fwd < (pp-pp_idx) && step_idx_fwd < n_step) {
++            if(batch_idx_fwd < (pp-pp_idx) && batch_idx_fwd < n_batch) {
 +               next_stage = exec_stage_e::ATT_FWD;
 +            } else {
 +               next_stage = exec_stage_e::MLP_BCK;
@@ -700,7 +700,7 @@ index 000000000..5f28b7ed7
 +         uint64_t msg_size = num_params[current_stage]/(dp*tp);
 +         allgather(evQ, msg_size, dtype, dp_group[dp_grp_idx]);
 +
-+         uint32_t tag = create_tag(step_idx_fwd, FWD_PATH);
++         uint32_t tag = create_tag(batch_idx_fwd, FWD_PATH);
 +         msg_size = (batch_size*seq_len*hidden_size)/tp;
 +         recv(evQ, msg_size, dtype, my_rank-tp, tag, GroupWorld);
 +
@@ -736,7 +736,7 @@ index 000000000..5f28b7ed7
 +         allreduce(evQ, msg_size, dtype, Hermes::MP::SUM, tp_group[tp_grp_idx]);
 +
 +         next_stage = exec_stage_e::BCK_LINEAR;
-+         step_idx_fwd++;
++         batch_idx_fwd++;
 +         break;
 +      }
 +      case BCK_LINEAR: {
@@ -757,12 +757,12 @@ index 000000000..5f28b7ed7
 +         uint64_t msg_size = batch_size*seq_len*hidden_size/tp;
 +         allgather(evQ, msg_size, dtype, tp_group[tp_grp_idx]);
 +
-+         uint32_t tag = create_tag(step_idx_bck, BCK_PATH);
++         uint32_t tag = create_tag(batch_idx_bck, BCK_PATH);
 +         msg_size = batch_size*seq_len*hidden_size/tp;
 +         isend(evQ, msg_size, dtype, my_rank-tp, tag, GroupWorld, req);
 +
-+         step_idx_bck++;
-+         if(step_idx_bck >= n_step) {
++         batch_idx_bck++;
++         if(batch_idx_bck >= n_batch) {
 +            finish = true;
 +         }
 +         next_stage = exec_stage_e::LOGITS;
@@ -773,7 +773,7 @@ index 000000000..5f28b7ed7
 +         allgather(evQ, msg_size, dtype, dp_group[dp_grp_idx]);
 +
 +         if(layer_index == 0) {
-+            uint32_t tag = create_tag(step_idx_bck, BCK_PATH);
++            uint32_t tag = create_tag(batch_idx_bck, BCK_PATH);
 +            msg_size = batch_size*seq_len*hidden_size/tp;
 +            recv(evQ, msg_size, dtype, my_rank+tp, tag, GroupWorld);
 +         }
@@ -797,23 +797,23 @@ index 000000000..5f28b7ed7
 +         allreduce(evQ, msg_size, dtype, Hermes::MP::SUM, tp_group[tp_grp_idx]);
 +
 +         if(layer_index == n_layer_to_execute) {
-+            uint32_t tag = create_tag(step_idx_bck, BCK_PATH);
++            uint32_t tag = create_tag(batch_idx_bck, BCK_PATH);
 +            msg_size = batch_size*seq_len*hidden_size/tp;
 +            isend(evQ, msg_size, dtype, my_rank-tp, tag, GroupWorld, req);
 +
 +            layer_index = 0;
-+            step_idx_bck++;
++            batch_idx_bck++;
 +
 +
-+            int64_t limit = (n_step - (pp - pp_idx));
++            int64_t limit = (n_batch - (pp - pp_idx));
 +            limit = (limit > 0) ? limit : 0;
-+            if(step_idx_bck > limit) {
++            if(batch_idx_bck > limit) {
 +               next_stage = exec_stage_e::MLP_BCK;
 +            } else {
 +               next_stage = exec_stage_e::ATT_FWD;
 +            }
 +
-+            if(step_idx_bck >= n_step) {
++            if(batch_idx_bck >= n_batch) {
 +               finish = true;
 +            }
 +         } else {
@@ -824,24 +824,24 @@ index 000000000..5f28b7ed7
 +         break;
 +      }
 +      case UPDATE: {
-+         uint32_t tag = create_tag(step_idx_bck, BCK_PATH);
++         uint32_t tag = create_tag(batch_idx_bck, BCK_PATH);
 +         uint64_t msg_size = batch_size*seq_len*hidden_size/tp;
 +         recv(evQ, msg_size, dtype, my_rank+tp, tag, GroupWorld);
 +
 +         enQ_compute(evQ, compute_time[current_stage]);
 +
 +         next_stage = exec_stage_e::TOKENIZE;
-+         step_idx_bck++;
++         batch_idx_bck++;
 +
-+         int64_t limit = (n_step - (pp - pp_idx));
++         int64_t limit = (n_batch - (pp - pp_idx));
 +         limit = (limit > 0) ? limit : 0;
-+         if(step_idx_bck > limit) {
++         if(batch_idx_bck > limit) {
 +            next_stage = current_stage;
 +         } else {
 +            next_stage = exec_stage_e::TOKENIZE;
 +         }
 +
-+         if(step_idx_bck >= n_step) {
++         if(batch_idx_bck >= n_batch) {
 +            finish = true;
 +         }
 +         break;
@@ -852,15 +852,15 @@ index 000000000..5f28b7ed7
 +   }
 +
 +   if(dp_idx == 1)
-+      out->verbose(CALL_INFO, 8, 0, "Current stage: %s\tnext stage: %s\tlayer index:%u\tstep index:%u/%u\n",
-+         exec_stage_s[current_stage].c_str(), exec_stage_s[next_stage].c_str(), layer_index, step_idx_fwd*dp, step_idx_bck*dp);
++      out->verbose(CALL_INFO, 8, 0, "Current stage: %s\tnext stage: %s\tlayer index:%u\tbatch index:%u/%u\n",
++         exec_stage_s[current_stage].c_str(), exec_stage_s[next_stage].c_str(), layer_index, batch_idx_fwd*dp, batch_idx_bck*dp);
 +
 +   current_stage = next_stage;
 +   return finish;
 +}
 diff --git a/src/sst/elements/ember/mpi/motifs/llm/emberLLM3DParallelism.h b/src/sst/elements/ember/mpi/motifs/llm/emberLLM3DParallelism.h
 new file mode 100644
-index 000000000..7d45681e3
+index 000000000..3165950fe
 --- /dev/null
 +++ b/src/sst/elements/ember/mpi/motifs/llm/emberLLM3DParallelism.h
 @@ -0,0 +1,173 @@
@@ -919,7 +919,7 @@ index 000000000..7d45681e3
 +
 +         {  "arg.batch_size",      "Number of sequence processed in parallel", "1" },
 +         {  "arg.sequence_len",    "Number of token per sequence", "8192" },
-+         {  "arg.n_step",          "Number of steps", "128" },
++         {  "arg.n_batch",          "Number of batches to process", "128" },
 +
 +         { "args.dram_bw",         "DRAM bandwidth in byte/second", "1555000000000"},
 +         { "args.peak_flop",       "Peak compute throughput @ targeted data type", "78000000000000"},
@@ -989,7 +989,7 @@ index 000000000..7d45681e3
 +
 +   uint64_t batch_size;
 +   uint64_t seq_len;
-+   uint64_t n_step;
++   uint64_t n_batch;
 +
 +   uint64_t hidden_size;
 +   uint64_t intermediate_size;
@@ -1002,8 +1002,8 @@ index 000000000..7d45681e3
 +
 +   exec_stage_e current_stage;
 +   uint32_t layer_index;
-+   uint32_t step_idx_fwd;
-+   uint32_t step_idx_bck;
++   uint32_t batch_idx_fwd;
++   uint32_t batch_idx_bck;
 +
 +   std::vector<uint64_t> num_params;
 +   std::vector<uint64_t> compute_time;
@@ -1039,7 +1039,7 @@ index 000000000..7d45681e3
 +#endif /* end of #ifndef EMBERLLM3DParallelism_H scope */
 diff --git a/src/sst/elements/ember/mpi/motifs/llm/emberLLMDataParallelism.cc b/src/sst/elements/ember/mpi/motifs/llm/emberLLMDataParallelism.cc
 new file mode 100644
-index 000000000..771c2c317
+index 000000000..28b733976
 --- /dev/null
 +++ b/src/sst/elements/ember/mpi/motifs/llm/emberLLMDataParallelism.cc
 @@ -0,0 +1,246 @@
@@ -1099,7 +1099,7 @@ index 000000000..771c2c317
 +   EmberMessagePassingGenerator(id, params, "LLMDataParallelism" ),
 +   current_stage(INIT),
 +   layer_index(0),
-+   step_index(0) {
++   batch_index(0) {
 +
 +      my_rank = rank();
 +      n_ranks = size();
@@ -1111,7 +1111,7 @@ index 000000000..771c2c317
 +
 +      batch_size = params.find<uint64_t>("arg.batch_size", 1);
 +      seq_len = params.find<uint64_t>("arg.sequence_len", 8192);
-+      n_step = params.find<uint64_t>("arg.n_step", 128);
++      n_batch = params.find<uint64_t>("arg.n_batch", 128);
 +
 +      dram_bw = (double)params.find<uint64_t>("arg.dram_bw", 1555000000000UL) / 1e9;
 +      peak_flop = (double)params.find<uint64_t>("args.peak_flop", 78000000000000UL) / 1e9;
@@ -1228,7 +1228,7 @@ index 000000000..771c2c317
 +   switch (current_stage) {
 +      case exec_stage_e::INIT:
 +         next_stage =  exec_stage_e::EMBD;
-+         step_index = 0;
++         batch_index = 0;
 +         layer_index = 0;
 +         break;
 +      case exec_stage_e::EMBD:
@@ -1269,9 +1269,9 @@ index 000000000..771c2c317
 +      }
 +      case exec_stage_e::UPDATE:
 +         layer_index = 0;
-+         step_index+= n_ranks;
++         batch_index+= n_ranks;
 +         next_stage = exec_stage_e::EMBD;
-+         if(step_index >= n_step)
++         if(batch_index >= n_batch)
 +            finish = true;
 +
 +         enQ_compute(evQ, compute_time[current_stage]);
@@ -1282,8 +1282,8 @@ index 000000000..771c2c317
 +   }
 +
 +   if(verbose && my_rank == 0)
-+      out->verbose(CALL_INFO, 8, 0, "Current stage: %s\tnext stage: %s\tlayer index:%u\tstep index:%u\n",
-+               exec_stage_s[current_stage].c_str(), exec_stage_s[next_stage].c_str(), layer_index, step_index);
++      out->verbose(CALL_INFO, 8, 0, "Current stage: %s\tnext stage: %s\tlayer index:%u\tbatch index:%u\n",
++               exec_stage_s[current_stage].c_str(), exec_stage_s[next_stage].c_str(), layer_index, batch_index);
 +
 +   current_stage = next_stage;
 +
@@ -1291,7 +1291,7 @@ index 000000000..771c2c317
 +}
 diff --git a/src/sst/elements/ember/mpi/motifs/llm/emberLLMDataParallelism.h b/src/sst/elements/ember/mpi/motifs/llm/emberLLMDataParallelism.h
 new file mode 100644
-index 000000000..3ed58f85a
+index 000000000..c876ee239
 --- /dev/null
 +++ b/src/sst/elements/ember/mpi/motifs/llm/emberLLMDataParallelism.h
 @@ -0,0 +1,126 @@
@@ -1346,7 +1346,7 @@ index 000000000..3ed58f85a
 +   SST_ELI_DOCUMENT_PARAMS(
 +         {  "arg.batch_size",      "Number of sequence processed in parallel", "1" },
 +         {  "arg.sequence_len",    "Number of token per sequence", "8192" },
-+         {  "arg.n_step",          "Number of steps", "128" },
++         {  "arg.n_batch",          "Number of batches to process", "128" },
 +
 +         { "args.dram_bw",         "DRAM bandwidth in byte/second", "1555000000000"},
 +         { "args.peak_flop",       "Peak compute throughput @ targeted data type", "78000000000000"},
@@ -1390,7 +1390,7 @@ index 000000000..3ed58f85a
 +
 +   uint64_t batch_size;
 +   uint64_t seq_len;
-+   uint64_t n_step;
++   uint64_t n_batch;
 +
 +   uint64_t hidden_size;
 +   uint64_t intermediate_size;
@@ -1402,7 +1402,7 @@ index 000000000..3ed58f85a
 +
 +   exec_stage_e current_stage;
 +   uint32_t layer_index;
-+   uint32_t step_index;
++   uint32_t batch_index;
 +
 +   std::vector<uint64_t> compute_time;
 +   std::vector<uint64_t> num_params;
@@ -1423,7 +1423,7 @@ index 000000000..3ed58f85a
 +#endif /* end of #ifndef EMBERLLMDataParallelism_H scope */
 diff --git a/src/sst/elements/ember/mpi/motifs/llm/emberLLMPipelineParallelism.cc b/src/sst/elements/ember/mpi/motifs/llm/emberLLMPipelineParallelism.cc
 new file mode 100644
-index 000000000..09055dc94
+index 000000000..764ccbf34
 --- /dev/null
 +++ b/src/sst/elements/ember/mpi/motifs/llm/emberLLMPipelineParallelism.cc
 @@ -0,0 +1,310 @@
@@ -1482,8 +1482,8 @@ index 000000000..09055dc94
 +EmberLLMPipelineParallelismGenerator::EmberLLMPipelineParallelismGenerator(SST::ComponentId_t id, Params& params) :
 +   EmberMessagePassingGenerator(id, params, "LLMPipelineParallelism" ),
 +   current_stage(INIT),
-+   step_idx_fwd(0),
-+   step_idx_bck(0){
++   batch_idx_fwd(0),
++   batch_idx_bck(0){
 +
 +      my_rank = rank();
 +      n_ranks = size();
@@ -1495,7 +1495,7 @@ index 000000000..09055dc94
 +
 +      batch_size = params.find<uint64_t>("arg.batch_size", 1);
 +      seq_len = params.find<uint64_t>("arg.sequence_len", 8192);
-+      n_step = params.find<uint64_t>("arg.n_step", 128);
++      n_batch = params.find<uint64_t>("arg.n_batch", 128);
 +
 +      dram_bw = (double)params.find<uint64_t>("arg.dram_bw", 1555000000000UL) / 1e9;
 +      peak_flop = (double)params.find<uint64_t>("args.peak_flop", 78000000000000UL) / 1e9;
@@ -1596,9 +1596,9 @@ index 000000000..09055dc94
 +#define FWD_PATH 0
 +#define BCK_PATH 1
 +
-+static uint32_t create_tag(const uint32_t step, const uint32_t path) {
++static uint32_t create_tag(const uint32_t batch, const uint32_t path) {
 +   uint32_t tag = path&0x1;
-+   tag |= step << 1;
++   tag |= batch << 1;
 +   return tag;
 +}
 +
@@ -1643,11 +1643,11 @@ index 000000000..09055dc94
 +         }
 +         break;
 +      case exec_stage_e::EMBD: {
-+         uint32_t tag = create_tag(step_idx_fwd, FWD_PATH);
++         uint32_t tag = create_tag(batch_idx_fwd, FWD_PATH);
 +         isend(evQ, msg_size, dtype, my_rank+1, tag, GroupWorld, req);
 +
-+         step_idx_fwd++;
-+         if(step_idx_fwd < n_ranks) {
++         batch_idx_fwd++;
++         if(batch_idx_fwd < n_ranks) {
 +            next_stage = current_stage;
 +         } else {
 +            next_stage = exec_stage_e::UPDATE;
@@ -1655,14 +1655,14 @@ index 000000000..09055dc94
 +         break;
 +      }
 +      case exec_stage_e::TB_FWD: {
-+         uint32_t tag = create_tag(step_idx_fwd, FWD_PATH);
++         uint32_t tag = create_tag(batch_idx_fwd, FWD_PATH);
 +         recv(evQ, msg_size, dtype, my_rank-1, tag, GroupWorld);
 +
-+         tag = create_tag(step_idx_fwd, FWD_PATH);
++         tag = create_tag(batch_idx_fwd, FWD_PATH);
 +         isend(evQ, msg_size, dtype, my_rank+1, tag, GroupWorld, req);
-+         step_idx_fwd++;
++         batch_idx_fwd++;
 +
-+         if(step_idx_fwd < (n_ranks-my_rank) && step_idx_fwd < n_step) {
++         if(batch_idx_fwd < (n_ranks-my_rank) && batch_idx_fwd < n_batch) {
 +            next_stage = current_stage;
 +         } else {
 +            next_stage = exec_stage_e::TB_BCK;
@@ -1670,16 +1670,16 @@ index 000000000..09055dc94
 +         break;
 +      }
 +      case exec_stage_e::OUT: {
-+         uint32_t tag = create_tag(step_idx_fwd, FWD_PATH);
++         uint32_t tag = create_tag(batch_idx_fwd, FWD_PATH);
 +         recv(evQ, msg_size, dtype, my_rank-1, tag, GroupWorld);
 +
-+         tag = create_tag(step_idx_bck, BCK_PATH);
++         tag = create_tag(batch_idx_bck, BCK_PATH);
 +         isend(evQ, msg_size, dtype, my_rank-1, tag, GroupWorld, req);
 +
-+         step_idx_fwd++;
-+         step_idx_bck++;
++         batch_idx_fwd++;
++         batch_idx_bck++;
 +
-+         if(step_idx_bck == n_step) {
++         if(batch_idx_bck == n_batch) {
 +            finish = true;
 +         }
 +
@@ -1687,40 +1687,40 @@ index 000000000..09055dc94
 +         break;
 +      }
 +      case exec_stage_e::TB_BCK: {
-+         uint32_t tag = create_tag(step_idx_bck, BCK_PATH);
++         uint32_t tag = create_tag(batch_idx_bck, BCK_PATH);
 +         recv(evQ, msg_size, dtype, my_rank+1, tag, GroupWorld);
 +
-+         tag = create_tag(step_idx_bck, BCK_PATH);
++         tag = create_tag(batch_idx_bck, BCK_PATH);
 +         isend(evQ, msg_size, dtype, my_rank-1, tag, GroupWorld, req);
 +
-+         step_idx_bck++;
++         batch_idx_bck++;
 +
-+         int64_t limit = (n_step - (n_ranks - my_rank));
++         int64_t limit = (n_batch - (n_ranks - my_rank));
 +         limit = (limit > 0) ? limit : 0;
-+         if(step_idx_bck > limit) {
++         if(batch_idx_bck > limit) {
 +            next_stage = current_stage;
 +         } else {
 +            next_stage = exec_stage_e::TB_FWD;
 +         }
 +
-+         if(step_idx_bck == n_step)
++         if(batch_idx_bck == n_batch)
 +            finish = true;
 +         break;
 +      }
 +      case exec_stage_e::UPDATE: {
-+         uint32_t tag = create_tag(step_idx_bck, BCK_PATH);
++         uint32_t tag = create_tag(batch_idx_bck, BCK_PATH);
 +         recv(evQ, msg_size, dtype, my_rank+1, tag, GroupWorld);
-+         step_idx_bck++;
++         batch_idx_bck++;
 +
-+         int64_t limit = (n_step - (n_ranks - my_rank));
++         int64_t limit = (n_batch - (n_ranks - my_rank));
 +         limit = (limit > 0) ? limit : 0;
-+         if(step_idx_bck > limit) {
++         if(batch_idx_bck > limit) {
 +            next_stage = current_stage;
 +         } else {
 +            next_stage = exec_stage_e::EMBD;
 +         }
 +
-+         if(step_idx_bck == n_step)
++         if(batch_idx_bck == n_batch)
 +            finish = true;
 +         break;
 +      }
@@ -1730,8 +1730,8 @@ index 000000000..09055dc94
 +   }
 +
 +   if(verbose)
-+      out->verbose(CALL_INFO, 8, 0, "Current stage: %s\tnext stage: %s\tstep index:%u/%u\n",
-+               exec_stage_s[current_stage].c_str(), exec_stage_s[next_stage].c_str(), step_idx_fwd, step_idx_bck);
++      out->verbose(CALL_INFO, 8, 0, "Current stage: %s\tnext stage: %s\tbatch index:%u/%u\n",
++               exec_stage_s[current_stage].c_str(), exec_stage_s[next_stage].c_str(), batch_idx_fwd, batch_idx_bck);
 +
 +   current_stage = next_stage;
 +
@@ -1739,7 +1739,7 @@ index 000000000..09055dc94
 +}
 diff --git a/src/sst/elements/ember/mpi/motifs/llm/emberLLMPipelineParallelism.h b/src/sst/elements/ember/mpi/motifs/llm/emberLLMPipelineParallelism.h
 new file mode 100644
-index 000000000..f2395683f
+index 000000000..f8db4e9f3
 --- /dev/null
 +++ b/src/sst/elements/ember/mpi/motifs/llm/emberLLMPipelineParallelism.h
 @@ -0,0 +1,128 @@
@@ -1794,7 +1794,7 @@ index 000000000..f2395683f
 +   SST_ELI_DOCUMENT_PARAMS(
 +         {  "arg.batch_size",      "Number of sequence processed in parallel", "1" },
 +         {  "arg.sequence_len",    "Number of token per sequence", "8192" },
-+         {  "arg.n_step",          "Number of steps", "128" },
++         {  "arg.n_batch",          "Number of batches to process", "128" },
 +
 +         { "args.dram_bw",         "DRAM bandwidth in byte/second", "1555000000000"},
 +         { "args.peak_flop",       "Peak compute throughput @ targeted data type", "78000000000000"},
@@ -1838,7 +1838,7 @@ index 000000000..f2395683f
 +
 +   uint64_t batch_size;
 +   uint64_t seq_len;
-+   uint64_t n_step;
++   uint64_t n_batch;
 +
 +   uint64_t hidden_size;
 +   uint64_t intermediate_size;
@@ -1848,8 +1848,8 @@ index 000000000..f2395683f
 +   PayloadDataType dtype;
 +
 +   exec_stage_e current_stage;
-+   uint32_t step_idx_fwd;
-+   uint32_t step_idx_bck;
++   uint32_t batch_idx_fwd;
++   uint32_t batch_idx_bck;
 +
 +   std::vector<uint64_t> compute_time;
 +   double dram_bw; //byte/ns
@@ -1873,7 +1873,7 @@ index 000000000..f2395683f
 +#endif /* end of #ifndef EMBERLLMPipelineParallelism_H scope */
 diff --git a/src/sst/elements/ember/mpi/motifs/llm/emberLLMTensorParallelism.cc b/src/sst/elements/ember/mpi/motifs/llm/emberLLMTensorParallelism.cc
 new file mode 100644
-index 000000000..14cdabbdb
+index 000000000..190a40041
 --- /dev/null
 +++ b/src/sst/elements/ember/mpi/motifs/llm/emberLLMTensorParallelism.cc
 @@ -0,0 +1,272 @@
@@ -1939,7 +1939,7 @@ index 000000000..14cdabbdb
 +   EmberMessagePassingGenerator(id, params, "LLMTensorParallelism" ),
 +   current_stage(INIT),
 +   layer_index(0),
-+   step_index(0) {
++   batch_index(0) {
 +
 +      my_rank = rank();
 +      n_ranks = size();
@@ -1951,7 +1951,7 @@ index 000000000..14cdabbdb
 +
 +      batch_size = params.find<uint64_t>("arg.batch_size", 1);
 +      seq_len = params.find<uint64_t>("arg.sequence_len", 8192);
-+      n_step = params.find<uint64_t>("arg.n_step", 128);
++      n_batch = params.find<uint64_t>("arg.n_batch", 128);
 +
 +      dram_bw = (double)params.find<uint64_t>("arg.dram_bw", 1555000000000UL) / 1e9;
 +      peak_flop = (double)params.find<uint64_t>("args.peak_flop", 78000000000000UL) / 1e9;
@@ -2067,7 +2067,7 @@ index 000000000..14cdabbdb
 +   switch (current_stage) {
 +      case INIT:
 +         next_stage = exec_stage_e::TOKENIZE;
-+         step_index = 0;
++         batch_index = 0;
 +         break;
 +      case TOKENIZE: {
 +         layer_index = 0;
@@ -2130,8 +2130,8 @@ index 000000000..14cdabbdb
 +      case exec_stage_e::UPDATE:
 +         layer_index = 0;
 +         next_stage = exec_stage_e::TOKENIZE;
-+         step_index++;
-+         if(step_index == n_step) {
++         batch_index++;
++         if(batch_index == n_batch) {
 +            finish = true;
 +         }
 +         break;
@@ -2141,8 +2141,8 @@ index 000000000..14cdabbdb
 +   }
 +
 +   if(verbose && my_rank == 0)
-+      out->verbose(CALL_INFO, 8, 0, "Current stage: %s\tnext stage: %s\tlayer index:%u\tstep index:%u\n",
-+               exec_stage_s[current_stage].c_str(), exec_stage_s[next_stage].c_str(), layer_index, step_index);
++      out->verbose(CALL_INFO, 8, 0, "Current stage: %s\tnext stage: %s\tlayer index:%u\tbatch index:%u\n",
++               exec_stage_s[current_stage].c_str(), exec_stage_s[next_stage].c_str(), layer_index, batch_index);
 +
 +   current_stage = next_stage;
 +
@@ -2151,7 +2151,7 @@ index 000000000..14cdabbdb
 +}
 diff --git a/src/sst/elements/ember/mpi/motifs/llm/emberLLMTensorParallelism.h b/src/sst/elements/ember/mpi/motifs/llm/emberLLMTensorParallelism.h
 new file mode 100644
-index 000000000..4d03b57df
+index 000000000..98e68495a
 --- /dev/null
 +++ b/src/sst/elements/ember/mpi/motifs/llm/emberLLMTensorParallelism.h
 @@ -0,0 +1,142 @@
@@ -2206,7 +2206,7 @@ index 000000000..4d03b57df
 +   SST_ELI_DOCUMENT_PARAMS(
 +         {  "arg.batch_size",      "Number of sequence processed in parallel", "1" },
 +         {  "arg.sequence_len",    "Number of token per sequence", "8192" },
-+         {  "arg.n_step",          "Number of steps", "128" },
++         {  "arg.n_batch",          "Number of batches to process", "128" },
 +
 +         { "args.dram_bw",         "DRAM bandwidth in byte/second", "1555000000000"},
 +         { "args.peak_flop",       "Peak compute throughput @ targeted data type", "78000000000000"},
@@ -2268,7 +2268,7 @@ index 000000000..4d03b57df
 +
 +   uint64_t batch_size;
 +   uint64_t seq_len;
-+   uint64_t n_step;
++   uint64_t n_batch;
 +
 +   uint64_t hidden_size;
 +   uint64_t intermediate_size;
@@ -2279,7 +2279,7 @@ index 000000000..4d03b57df
 +
 +   exec_stage_e current_stage;
 +   uint32_t layer_index;
-+   uint32_t step_index;
++   uint32_t batch_index;
 +
 +   std::vector<uint64_t> compute_time;
 +   double dram_bw; //byte/ns
