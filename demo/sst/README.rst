@@ -269,16 +269,10 @@ DEMO
 For the demo, we will explore two systems. The first is a single-node system, the second
 is a scale-out system.
 
-<<<<<<< HEAD
-Scale-up system
-~~~~~~~~~~~~~~~
-.. _scale_up: ../../demo/sst/system/scale_up.py
-=======
 **Scale-up system**
 
 
 .. _scale_up: ../../demo/sst/instruction-level-simulation/scale_up.py
->>>>>>> 2f26412 (LLM ember generator)
 
 The python script `scale_up`_ build the system for the scale up system. You can explore
 the script to understand how a system is built with SST.
@@ -370,16 +364,10 @@ activity (*e.g.*, 4 CPU 2 threads). You can fill the table below:
 | Million of instr. per second   |          |           |           |          |
 +--------------------------------+----------+-----------+-----------+----------+
 
-<<<<<<< HEAD
-Scale-out system
-~~~~~~~~~~~~~~~~
-.. _scale_out: ../../demo/sst/system/scale_out.py
-=======
 **Scale-out system**
 
 
 .. _scale_out: ../../demo/sst/instruction-level-simulation/scale_out.py
->>>>>>> 2f26412 (LLM ember generator)
 
 The python script `scale_out`_ build the system for the scale out system. You can explore
 the script to understand how a system is built with SST.
@@ -409,7 +397,7 @@ You can configure the number of node in the system from the command line by sett
 *First experiment: Changing the inter-node network topology*
 
 
-.. literalinclude:: ../demo/sst/system/scale_out.py
+.. literalinclude:: ../demo/sst/instruction-level-simulation/scale_out.py
    :language: python
    :linenos:
    :lineno-start: 35
@@ -458,7 +446,28 @@ References
 
 
 Packet-level simulation
-============================
+=======================
+
+Environment Setup
+-----------------
+
+To run the packet-level simulation, you can use the docker setup provided.
+To build the environment:
+
+.. code:: bash
+
+   cd docker
+   docker compose up -d
+
+To enter the container:
+
+
+.. code:: bash
+
+   docker exec -it docker-riscv-scalable-simulation-tutorial-sst /bin/bash
+
+The working directory inside the container is ``/opt/riscv-scalable-simulation-tutorial-sst/packet-level-simulation``.
+We will assume that every command is executed from that folder.
 
 Parallelism in Large Language Model training
 --------------------------------------------
@@ -534,7 +543,89 @@ The 3 level of parallelism can be merged to enable 3D parallelism as shown in Fi
 .. _sst-elements.patch: ../../external/sst/sst-elements.patch
 
 4 *Ember* generators are provided in `sst-elements.patch`_ to generate the MPI traffic
-corresponding to the 3 types of parallelism and the fusion of all of them.
+corresponding to the 3 types of parallelism and the 3D parallelism.
 
 DEMO
 ----
+
+To run the experiments you need to log into the docker and move in the following directory ``/opt/riscv-scalable-simulation-tutorial-sst/packet-level-simulation``.
+
+.. _training_llm: ../../demo/sst/packet-level-simulation/training_llm.py
+
+
+.. _small_config: ../../demo/sst/packet-level-simulation/small_config.json
+
+
+.. _large_config: ../../demo/sst/packet-level-simulation/large_config.json
+
+
+The python script `training_llm`_ builds the system to explore LLM training. Different
+options can be passed via the command line:
+
+* --tp TP to define the level of tensor parallelism.
+
+* --pp PP to define the level of pipeline parallelism.
+
+* --dp PP to define the level of data parallelism.
+
+* --batch_size BATCH_SIZE to define the number of sequences processed in parallel per DP
+  (i.e., if DP = 4 and BATCH_SIZE = 16, the number of sequences processed in parallel is
+  64).
+
+* --sequence_len SEQUENCE_LEN to define the number of tokens per sequence
+
+* --n_step N_STEP to define the number of batches to process (e.g., if N_STEP = 16 and DP
+  = 4, each rank will process 4 batches).
+
+* --llm_config LLM_CONFIG to define the path to the LLM configuration file (configuration
+* files are downloaded from hugging face). 2 files are provided `small_config`_
+* corresponding to Llama-3.2 1B and `large_config`_ corresponding to Llama-3.1 405B.
+
+* --peak_flop PEAK_FLOP to define the peak compute throughput of 1 GPU at the targeted
+* precission. This parameter is used to estimate the compute duration.
+
+* --draw_bw DRAW_BW to define the dra compute throughput of 1 GPU at the targeted
+* precission. This parameter is used to estimate the compute duration.
+
+* --verbose VERBOSE  to enable printing from Ember generators. VERBOSE = 6 prints the
+*  compute time for each rank. VERBOSE = 8 print the transitions of the state machine for
+*  each rank.
+
+* --log [LOG] to enable tracer of motif execution times. LOG defines the name of the
+  output file.
+
+* --stats [STATS] to enable statistics collection. STATS defines the name of the output
+  file (must be csv file).
+
+* --topology TOPOLOGY to define the topology to explore.
+
+
+**Exploring Tensor Parallelism**
+
+
+.. code:: bash
+
+   sst training_llm.py -- --tp 8 --pp 1 --dp 1 --batch_size 16 --sequence_len 1024 --n_step 4 --llm_config small_config.json --log tp_logger --stats tp_stats.csv --topology single --verbose 10
+
+
+**Exploring Pipeline Parallelism**
+
+.. code:: bash
+
+   sst training_llm.py -- --tp 1 --pp 5 --dp 1 --batch_size 16 --sequence_len 1024 --n_step 16 --llm_config small_config.json --log pp_logger --stats pp_stats.csv --topology single --verbose 10
+
+
+**Exploring Data Parallelism**
+
+.. code:: bash
+
+   sst training_llm.py -- --tp 1 --pp 1 --dp 4 --batch_size 16 --sequence_len 1024 --n_step 16 --llm_config small_config.json --log tp_logger --stats tp_stats.csv --topology single --verbose 10
+
+
+**Exploring 3D Parallelism**
+
+.. code:: bash
+
+   sst training_llm.py -- --tp 4 --pp 5 --dp 4 --batch_size 16 --sequence_len 1024 --n_step 16 --llm_config small_config.json --log tp_logger --stats tp_stats.csv --topology fattree --verbose 10
+
+
