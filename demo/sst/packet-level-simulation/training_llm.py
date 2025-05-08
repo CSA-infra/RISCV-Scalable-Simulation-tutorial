@@ -36,9 +36,9 @@ llm_config_default= os.path.join(os.path.dirname(os.path.realpath(__file__)), "s
 parser = argparse.ArgumentParser(
         prog=f'sst {__file__} --',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-parser.add_argument("--tp", type=int, help="Tensor Parallelism level", default=2)
-parser.add_argument("--pp", type=int, help="Data Parallelism level", default=2)
-parser.add_argument("--dp", type=int, help="Pipeline Parallelism level", default=2)
+parser.add_argument("--tp", type=int, help="Tensor Parallelism level", default=8)
+parser.add_argument("--pp", type=int, help="Data Parallelism level", default=1)
+parser.add_argument("--dp", type=int, help="Pipeline Parallelism level", default=1)
 parser.add_argument("--batch_size", type=int, help="Number of sequence processed in parallel", default=32)
 parser.add_argument("--sequence_len", type=int, help="Number of token per sequence", default=8192)
 parser.add_argument("--n_step", type=int, help="Number of steps", default=128)
@@ -146,14 +146,10 @@ router.output_buf_size = params["output_buf_size"]
 router.num_vns = params["num_vns"]
 router.xbar_arb = params["xbar_arb"]
 
-topo = topoSingle()
-topo.num_ports = num_ranks
-
 
 ### Setup the topology
 topo.link_latency = params["link_lat"]
 topo.router = router
-#topo.bundleEndpoints = False
 
 system = System()
 system.setTopology(topo)
