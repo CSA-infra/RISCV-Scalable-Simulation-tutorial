@@ -61,6 +61,8 @@ if args.stats:
     enableStats = True
     sst.setStatisticLoadLevel(10)
 
+    stat_params = {"type":"sst.AccumulatorStatistic"}
+
     fname = args.stats
     if fname.endswith(".csv"):
         sst.setStatisticOutput("sst.statOutputCSV",
@@ -156,5 +158,9 @@ topo.router = router
 system = System()
 system.setTopology(topo)
 system.allocateNodes(ep,"linear")
+
+if enableStats:
+    networkif.enableAllStatistics(stat_params)
+    router.enableAllStatistics(stat_params)
 
 system.build()
