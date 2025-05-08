@@ -43,6 +43,8 @@ parser.add_argument("--batch_size", type=int, help="Number of sequence processed
 parser.add_argument("--sequence_len", type=int, help="Number of token per sequence", default=8192)
 parser.add_argument("--n_step", type=int, help="Number of steps", default=128)
 parser.add_argument("--llm_config", type=str, help="Configuration file of the Large Language Model", default=llm_config_default)
+parser.add_argument("--peak_flop", type=int, help="Peak flop throughput per end point for the targeted data type", default=78e12)
+parser.add_argument("--draw_bw", type=int, help="DRAM bandwidth per end point", default=1555e9)
 parser.add_argument("--verbose", type=int, help="Set verbosity", default=0)
 parser.add_argument("--log", type=str, help="Enable motif logger", action='store', nargs='?', const="logger")
 parser.add_argument("--stats", type=str, help="write statistics, argument changes the filename", nargs="?", const="-")
@@ -91,16 +93,16 @@ ep.network_interface = networkif
 ep.addMotif("Init")
 
 if args.tp > 1 and args.pp == 1 and args.dp == 1:
-    ep.addMotif(f"LLMTensorParallelism batch_size={args.batch_size} sequence_len={args.sequence_len} n_step={args.n_step} llm_config={args.llm_config} verbose={args.verbose}")
+    ep.addMotif(f"LLMTensorParallelism batch_size={args.batch_size} sequence_len={args.sequence_len} n_step={args.n_step} llm_config={args.llm_config} verbose={args.verbose} draw_bw={args.draw_bw} peak_flop={args.peak_flop}")
 
 if args.pp > 1 and args.tp == 1 and args.dp == 1:
-    ep.addMotif(f"LLMPipelineParallelism batch_size={args.batch_size} sequence_len={args.sequence_len} n_step={args.n_step} llm_config={args.llm_config} verbose={args.verbose}")
+    ep.addMotif(f"LLMPipelineParallelism batch_size={args.batch_size} sequence_len={args.sequence_len} n_step={args.n_step} llm_config={args.llm_config} verbose={args.verbose} draw_bw={args.draw_bw} peak_flop={args.peak_flop}")
 
 if args.dp > 1 and args.tp == 1 and args.pp == 1:
-    ep.addMotif(f"LLMDataParallelism batch_size={args.batch_size} sequence_len={args.sequence_len} n_step={args.n_step} llm_config={args.llm_config} verbose={args.verbose}")
+    ep.addMotif(f"LLMDataParallelism batch_size={args.batch_size} sequence_len={args.sequence_len} n_step={args.n_step} llm_config={args.llm_config} verbose={args.verbose} draw_bw={args.draw_bw} peak_flop={args.peak_flop}")
 
 if args.dp > 1 and args.tp > 1 and args.pp > 1:
-    ep.addMotif(f"LLM3DParallelism tp={args.tp} pp={args.pp} dp={args.dp} batch_size={args.batch_size} sequence_len={args.sequence_len} n_step={args.n_step} llm_config={args.llm_config} verbose={args.verbose}")
+    ep.addMotif(f"LLM3DParallelism tp={args.tp} pp={args.pp} dp={args.dp} batch_size={args.batch_size} sequence_len={args.sequence_len} n_step={args.n_step} llm_config={args.llm_config} verbose={args.verbose} draw_bw={args.draw_bw} peak_flop={args.peak_flop}")
 
 ep.addMotif("Fini")
 ep.nic.nic2host_lat= params["host_link_latency"]
