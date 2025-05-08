@@ -9,6 +9,41 @@ index 0289c72c5..50c34eae4 100644
 +build/
 +install/
 +configure~
+diff --git a/src/sst/elements/ariel/.ignore b/src/sst/elements/ariel/.ignore
+new file mode 100644
+index 000000000..b89be1584
+--- /dev/null
++++ b/src/sst/elements/ariel/.ignore
+@@ -0,0 +1 @@
++Not needed for the tutorial
+diff --git a/src/sst/elements/balar/.ignore b/src/sst/elements/balar/.ignore
+new file mode 100644
+index 000000000..b89be1584
+--- /dev/null
++++ b/src/sst/elements/balar/.ignore
+@@ -0,0 +1 @@
++Not needed for the tutorial
+diff --git a/src/sst/elements/cacheTracer/.ignore b/src/sst/elements/cacheTracer/.ignore
+new file mode 100644
+index 000000000..b89be1584
+--- /dev/null
++++ b/src/sst/elements/cacheTracer/.ignore
+@@ -0,0 +1 @@
++Not needed for the tutorial
+diff --git a/src/sst/elements/cassini/.ignore b/src/sst/elements/cassini/.ignore
+new file mode 100644
+index 000000000..b89be1584
+--- /dev/null
++++ b/src/sst/elements/cassini/.ignore
+@@ -0,0 +1 @@
++Not needed for the tutorial
+diff --git a/src/sst/elements/cramSim/.ignore b/src/sst/elements/cramSim/.ignore
+new file mode 100644
+index 000000000..b89be1584
+--- /dev/null
++++ b/src/sst/elements/cramSim/.ignore
+@@ -0,0 +1 @@
++Not needed for the tutorial
 diff --git a/src/sst/elements/ember/Makefile.am b/src/sst/elements/ember/Makefile.am
 index 05fd3622b..cd010075a 100644
 --- a/src/sst/elements/ember/Makefile.am
@@ -282,7 +317,7 @@ index 000000000..469b1a724
 +#endif /* end of #ifndef ANALYTICAL_MODEL_H scope */
 diff --git a/src/sst/elements/ember/mpi/motifs/llm/emberLLM3DParallelism.cc b/src/sst/elements/ember/mpi/motifs/llm/emberLLM3DParallelism.cc
 new file mode 100644
-index 000000000..08ef6c1fb
+index 000000000..0689f5ea3
 --- /dev/null
 +++ b/src/sst/elements/ember/mpi/motifs/llm/emberLLM3DParallelism.cc
 @@ -0,0 +1,537 @@
@@ -393,7 +428,7 @@ index 000000000..08ef6c1fb
 +      uint64_t max_ctx = config["max_position_embeddings"];
 +
 +      if(max_ctx < seq_len) {
-+         out->fatal(CALL_INFO_LONG, -1, "Sequence length (%u) is greater than context length(%u): %s\n", seq_len, max_ctx);
++         out->fatal(CALL_INFO_LONG, -1, "Sequence length (%lu) is greater than context length(%lu)\n", seq_len, max_ctx);
 +      }
 +
 +      hidden_size = config["hidden_size"];
@@ -410,7 +445,7 @@ index 000000000..08ef6c1fb
 +      } else if (dtype_s == "float8") {
 +         dtype = INT8_T;
 +      } else {
-+         out->fatal(CALL_INFO_LONG, -1, "Unknown dataype: %s\n", dtype_s);
++         out->fatal(CALL_INFO_LONG, -1, "Unknown dataype: %s\n", dtype_s.c_str());
 +      }
 +      vocab_size = config["vocab_size"];
 +
@@ -1004,7 +1039,7 @@ index 000000000..7d45681e3
 +#endif /* end of #ifndef EMBERLLM3DParallelism_H scope */
 diff --git a/src/sst/elements/ember/mpi/motifs/llm/emberLLMDataParallelism.cc b/src/sst/elements/ember/mpi/motifs/llm/emberLLMDataParallelism.cc
 new file mode 100644
-index 000000000..d60a463b8
+index 000000000..5d806a6a1
 --- /dev/null
 +++ b/src/sst/elements/ember/mpi/motifs/llm/emberLLMDataParallelism.cc
 @@ -0,0 +1,246 @@
@@ -1094,7 +1129,7 @@ index 000000000..d60a463b8
 +      uint64_t max_ctx = config["max_position_embeddings"];
 +
 +      if(max_ctx < seq_len) {
-+         out->fatal(CALL_INFO_LONG, -1, "Sequence length (%u) is greater than context length(%u): %s\n", seq_len, max_ctx);
++         out->fatal(CALL_INFO_LONG, -1, "Sequence length (%lu) is greater than context length(%lu)\n", seq_len, max_ctx);
 +      }
 +
 +      hidden_size = config["hidden_size"];
@@ -1113,7 +1148,7 @@ index 000000000..d60a463b8
 +      } else if (dtype_s == "float8") {
 +         dtype = INT8_T;
 +      } else {
-+         out->fatal(CALL_INFO_LONG, -1, "Unknown dataype: %s\n", dtype_s);
++         out->fatal(CALL_INFO_LONG, -1, "Unknown dataype: %s\n", dtype_s.c_str());
 +      }
 +      vocab_size = config["vocab_size"];
 +
@@ -1388,7 +1423,7 @@ index 000000000..3ed58f85a
 +#endif /* end of #ifndef EMBERLLMDataParallelism_H scope */
 diff --git a/src/sst/elements/ember/mpi/motifs/llm/emberLLMPipelineParallelism.cc b/src/sst/elements/ember/mpi/motifs/llm/emberLLMPipelineParallelism.cc
 new file mode 100644
-index 000000000..4d9cbc897
+index 000000000..b426ae5c8
 --- /dev/null
 +++ b/src/sst/elements/ember/mpi/motifs/llm/emberLLMPipelineParallelism.cc
 @@ -0,0 +1,310 @@
@@ -1478,7 +1513,7 @@ index 000000000..4d9cbc897
 +      uint64_t max_ctx = config["max_position_embeddings"];
 +
 +      if(max_ctx < seq_len) {
-+         out->fatal(CALL_INFO_LONG, -1, "Sequence length (%u) is greater than context length(%u): %s\n", seq_len, max_ctx);
++         out->fatal(CALL_INFO_LONG, -1, "Sequence length (%lu) is greater than context length(%lu)\n", seq_len, max_ctx);
 +      }
 +
 +      hidden_size = config["hidden_size"];
@@ -1497,7 +1532,7 @@ index 000000000..4d9cbc897
 +      } else if (dtype_s == "float8") {
 +         dtype = INT8_T;
 +      } else {
-+         out->fatal(CALL_INFO_LONG, -1, "Unknown dataype: %s\n", dtype_s);
++         out->fatal(CALL_INFO_LONG, -1, "Unknown dataype: %s\n", dtype_s.c_str());
 +      }
 +      vocab_size = config["vocab_size"];
 +
@@ -1838,7 +1873,7 @@ index 000000000..f2395683f
 +#endif /* end of #ifndef EMBERLLMPipelineParallelism_H scope */
 diff --git a/src/sst/elements/ember/mpi/motifs/llm/emberLLMTensorParallelism.cc b/src/sst/elements/ember/mpi/motifs/llm/emberLLMTensorParallelism.cc
 new file mode 100644
-index 000000000..dd650e3ed
+index 000000000..d1617adda
 --- /dev/null
 +++ b/src/sst/elements/ember/mpi/motifs/llm/emberLLMTensorParallelism.cc
 @@ -0,0 +1,272 @@
@@ -1934,7 +1969,7 @@ index 000000000..dd650e3ed
 +      uint64_t max_ctx = config["max_position_embeddings"];
 +
 +      if(max_ctx < seq_len) {
-+         out->fatal(CALL_INFO_LONG, -1, "Sequence length (%u) is greater than context length(%u): %s\n", seq_len, max_ctx);
++         out->fatal(CALL_INFO_LONG, -1, "Sequence length (%lu) is greater than context length(%lu)\n", seq_len, max_ctx);
 +      }
 +
 +      hidden_size = config["hidden_size"];
@@ -1951,7 +1986,7 @@ index 000000000..dd650e3ed
 +      } else if (dtype_s == "float8") {
 +         dtype = INT8_T;
 +      } else {
-+         out->fatal(CALL_INFO_LONG, -1, "Unknown dataype: %s\n", dtype_s);
++         out->fatal(CALL_INFO_LONG, -1, "Unknown dataype: %s\n", dtype_s.c_str());
 +      }
 +      vocab_size = config["vocab_size"];
 +
@@ -2262,6 +2297,48 @@ index 000000000..4d03b57df
 +
 +
 +#endif /* end of #ifndef EMBERLLMTensorParallelism_H scope */
+diff --git a/src/sst/elements/gensa/.ignore b/src/sst/elements/gensa/.ignore
+new file mode 100644
+index 000000000..b89be1584
+--- /dev/null
++++ b/src/sst/elements/gensa/.ignore
+@@ -0,0 +1 @@
++Not needed for the tutorial
+diff --git a/src/sst/elements/iris/.ignore b/src/sst/elements/iris/.ignore
+new file mode 100644
+index 000000000..b89be1584
+--- /dev/null
++++ b/src/sst/elements/iris/.ignore
+@@ -0,0 +1 @@
++Not needed for the tutorial
+diff --git a/src/sst/elements/kingsley/.ignore b/src/sst/elements/kingsley/.ignore
+new file mode 100644
+index 000000000..b89be1584
+--- /dev/null
++++ b/src/sst/elements/kingsley/.ignore
+@@ -0,0 +1 @@
++Not needed for the tutorial
+diff --git a/src/sst/elements/llyr/.ignore b/src/sst/elements/llyr/.ignore
+new file mode 100644
+index 000000000..b89be1584
+--- /dev/null
++++ b/src/sst/elements/llyr/.ignore
+@@ -0,0 +1 @@
++Not needed for the tutorial
+diff --git a/src/sst/elements/mask-mpi/.ignore b/src/sst/elements/mask-mpi/.ignore
+new file mode 100644
+index 000000000..b89be1584
+--- /dev/null
++++ b/src/sst/elements/mask-mpi/.ignore
+@@ -0,0 +1 @@
++Not needed for the tutorial
+diff --git a/src/sst/elements/mercury/.ignore b/src/sst/elements/mercury/.ignore
+new file mode 100644
+index 000000000..b89be1584
+--- /dev/null
++++ b/src/sst/elements/mercury/.ignore
+@@ -0,0 +1 @@
++Not needed for the tutorial
 diff --git a/src/sst/elements/merlin/pymerlin.py b/src/sst/elements/merlin/pymerlin.py
 index 7906e064d..dff0973ed 100644
 --- a/src/sst/elements/merlin/pymerlin.py
@@ -2275,6 +2352,69 @@ index 7906e064d..dff0973ed 100644
          rtr.setSubComponent("topology","merlin.singlerouter",0)
          _params["topology"] = "merlin.singlerouter"
          _params["debug"] = debug
+diff --git a/src/sst/elements/messier/.ignore b/src/sst/elements/messier/.ignore
+new file mode 100644
+index 000000000..b89be1584
+--- /dev/null
++++ b/src/sst/elements/messier/.ignore
+@@ -0,0 +1 @@
++Not needed for the tutorial
+diff --git a/src/sst/elements/miranda/.ignore b/src/sst/elements/miranda/.ignore
+new file mode 100644
+index 000000000..b89be1584
+--- /dev/null
++++ b/src/sst/elements/miranda/.ignore
+@@ -0,0 +1 @@
++Not needed for the tutorial
+diff --git a/src/sst/elements/opal/.ignore b/src/sst/elements/opal/.ignore
+new file mode 100644
+index 000000000..b89be1584
+--- /dev/null
++++ b/src/sst/elements/opal/.ignore
+@@ -0,0 +1 @@
++Not needed for the tutorial
+diff --git a/src/sst/elements/osseous/.ignore b/src/sst/elements/osseous/.ignore
+new file mode 100644
+index 000000000..b89be1584
+--- /dev/null
++++ b/src/sst/elements/osseous/.ignore
+@@ -0,0 +1 @@
++Not needed for the tutorial
+diff --git a/src/sst/elements/prospero/.ignore b/src/sst/elements/prospero/.ignore
+new file mode 100644
+index 000000000..b89be1584
+--- /dev/null
++++ b/src/sst/elements/prospero/.ignore
+@@ -0,0 +1 @@
++Not needed for the tutorial
+diff --git a/src/sst/elements/samba/.ignore b/src/sst/elements/samba/.ignore
+new file mode 100644
+index 000000000..b89be1584
+--- /dev/null
++++ b/src/sst/elements/samba/.ignore
+@@ -0,0 +1 @@
++Not needed for the tutorial
+diff --git a/src/sst/elements/serrano/.ignore b/src/sst/elements/serrano/.ignore
+new file mode 100644
+index 000000000..b89be1584
+--- /dev/null
++++ b/src/sst/elements/serrano/.ignore
+@@ -0,0 +1 @@
++Not needed for the tutorial
+diff --git a/src/sst/elements/shogun/.ignore b/src/sst/elements/shogun/.ignore
+new file mode 100644
+index 000000000..b89be1584
+--- /dev/null
++++ b/src/sst/elements/shogun/.ignore
+@@ -0,0 +1 @@
++Not needed for the tutorial
+diff --git a/src/sst/elements/thornhill/.ignore b/src/sst/elements/thornhill/.ignore
+new file mode 100644
+index 000000000..b89be1584
+--- /dev/null
++++ b/src/sst/elements/thornhill/.ignore
+@@ -0,0 +1 @@
++Not needed for the tutorial
 diff --git a/src/sst/elements/vanadis/Makefile.am b/src/sst/elements/vanadis/Makefile.am
 index 2895b38c5..e5e2cbeaa 100644
 --- a/src/sst/elements/vanadis/Makefile.am
@@ -2291,3 +2431,17 @@ index 2895b38c5..e5e2cbeaa 100644
  
  compdir = $(pkglibdir)
  comp_LTLIBRARIES = libvanadis.la
+diff --git a/src/sst/elements/vaultsim/.ignore b/src/sst/elements/vaultsim/.ignore
+new file mode 100644
+index 000000000..b89be1584
+--- /dev/null
++++ b/src/sst/elements/vaultsim/.ignore
+@@ -0,0 +1 @@
++Not needed for the tutorial
+diff --git a/src/sst/elements/zodiac/.ignore b/src/sst/elements/zodiac/.ignore
+new file mode 100644
+index 000000000..b89be1584
+--- /dev/null
++++ b/src/sst/elements/zodiac/.ignore
+@@ -0,0 +1 @@
++Not needed for the tutorial
