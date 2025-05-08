@@ -317,7 +317,7 @@ index 000000000..469b1a724
 +#endif /* end of #ifndef ANALYTICAL_MODEL_H scope */
 diff --git a/src/sst/elements/ember/mpi/motifs/llm/emberLLM3DParallelism.cc b/src/sst/elements/ember/mpi/motifs/llm/emberLLM3DParallelism.cc
 new file mode 100644
-index 000000000..0689f5ea3
+index 000000000..5f28b7ed7
 --- /dev/null
 +++ b/src/sst/elements/ember/mpi/motifs/llm/emberLLM3DParallelism.cc
 @@ -0,0 +1,537 @@
@@ -852,7 +852,7 @@ index 000000000..0689f5ea3
 +   }
 +
 +   if(dp_idx == 1)
-+      out->verbose(CALL_INFO, 4, 0, "Current stage: %s\tnext stage: %s\tlayer index:%u\tstep index:%u/%u\n",
++      out->verbose(CALL_INFO, 8, 0, "Current stage: %s\tnext stage: %s\tlayer index:%u\tstep index:%u/%u\n",
 +         exec_stage_s[current_stage].c_str(), exec_stage_s[next_stage].c_str(), layer_index, step_idx_fwd*dp, step_idx_bck*dp);
 +
 +   current_stage = next_stage;
@@ -1039,7 +1039,7 @@ index 000000000..7d45681e3
 +#endif /* end of #ifndef EMBERLLM3DParallelism_H scope */
 diff --git a/src/sst/elements/ember/mpi/motifs/llm/emberLLMDataParallelism.cc b/src/sst/elements/ember/mpi/motifs/llm/emberLLMDataParallelism.cc
 new file mode 100644
-index 000000000..5d806a6a1
+index 000000000..771c2c317
 --- /dev/null
 +++ b/src/sst/elements/ember/mpi/motifs/llm/emberLLMDataParallelism.cc
 @@ -0,0 +1,246 @@
@@ -1195,7 +1195,7 @@ index 000000000..5d806a6a1
 +
 +      if(my_rank == 0) {
 +         for(int i = 0; i < exec_stage_e::UNKNOWN; i++)
-+            out->verbose(CALL_INFO, 5, 0, "Compute time[%s]: %lu\n",
++            out->verbose(CALL_INFO, 6, 0, "Compute time[%s]: %lu\n",
 +               exec_stage_s[i].c_str(), compute_time[i]);
 +      }
 +   }
@@ -1282,7 +1282,7 @@ index 000000000..5d806a6a1
 +   }
 +
 +   if(verbose && my_rank == 0)
-+      out->verbose(CALL_INFO, 10, 0, "Current stage: %s\tnext stage: %s\tlayer index:%u\tstep index:%u\n",
++      out->verbose(CALL_INFO, 8, 0, "Current stage: %s\tnext stage: %s\tlayer index:%u\tstep index:%u\n",
 +               exec_stage_s[current_stage].c_str(), exec_stage_s[next_stage].c_str(), layer_index, step_index);
 +
 +   current_stage = next_stage;
@@ -1423,7 +1423,7 @@ index 000000000..3ed58f85a
 +#endif /* end of #ifndef EMBERLLMDataParallelism_H scope */
 diff --git a/src/sst/elements/ember/mpi/motifs/llm/emberLLMPipelineParallelism.cc b/src/sst/elements/ember/mpi/motifs/llm/emberLLMPipelineParallelism.cc
 new file mode 100644
-index 000000000..b426ae5c8
+index 000000000..09055dc94
 --- /dev/null
 +++ b/src/sst/elements/ember/mpi/motifs/llm/emberLLMPipelineParallelism.cc
 @@ -0,0 +1,310 @@
@@ -1589,7 +1589,7 @@ index 000000000..b426ae5c8
 +      compute_time[exec_stage_e::TB_FWD] *= n_layer_to_execute;
 +      compute_time[exec_stage_e::TB_BCK] *= n_layer_to_execute;
 +      for(int i = 0; i < exec_stage_e::UNKNOWN; i++)
-+         out->verbose(CALL_INFO, 5, 0, "Compute time[%s]: %lu\n",
++         out->verbose(CALL_INFO, 6, 0, "Compute time[%s]: %lu\n",
 +               exec_stage_s[i].c_str(), compute_time[i]);
 +      }
 +
@@ -1730,7 +1730,7 @@ index 000000000..b426ae5c8
 +   }
 +
 +   if(verbose)
-+      out->verbose(CALL_INFO, 10, 0, "Current stage: %s\tnext stage: %s\tstep index:%u/%u\n",
++      out->verbose(CALL_INFO, 8, 0, "Current stage: %s\tnext stage: %s\tstep index:%u/%u\n",
 +               exec_stage_s[current_stage].c_str(), exec_stage_s[next_stage].c_str(), step_idx_fwd, step_idx_bck);
 +
 +   current_stage = next_stage;
@@ -1873,7 +1873,7 @@ index 000000000..f2395683f
 +#endif /* end of #ifndef EMBERLLMPipelineParallelism_H scope */
 diff --git a/src/sst/elements/ember/mpi/motifs/llm/emberLLMTensorParallelism.cc b/src/sst/elements/ember/mpi/motifs/llm/emberLLMTensorParallelism.cc
 new file mode 100644
-index 000000000..d1617adda
+index 000000000..14cdabbdb
 --- /dev/null
 +++ b/src/sst/elements/ember/mpi/motifs/llm/emberLLMTensorParallelism.cc
 @@ -0,0 +1,272 @@
@@ -2023,7 +2023,7 @@ index 000000000..d1617adda
 +
 +      if(my_rank == 0) {
 +         for(int i = 0; i < exec_stage_e::UNKNOWN; i++)
-+            out->verbose(CALL_INFO, 5, 0, "Compute time[%s]: %lu\n",
++            out->verbose(CALL_INFO, 6, 0, "Compute time[%s]: %lu\n",
 +               exec_stage_s[i].c_str(), compute_time[i]);
 +      }
 +   }
@@ -2141,7 +2141,7 @@ index 000000000..d1617adda
 +   }
 +
 +   if(verbose && my_rank == 0)
-+      out->verbose(CALL_INFO, 10, 0, "Current stage: %s\tnext stage: %s\tlayer index:%u\tstep index:%u\n",
++      out->verbose(CALL_INFO, 8, 0, "Current stage: %s\tnext stage: %s\tlayer index:%u\tstep index:%u\n",
 +               exec_stage_s[current_stage].c_str(), exec_stage_s[next_stage].c_str(), layer_index, step_index);
 +
 +   current_stage = next_stage;
