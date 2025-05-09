@@ -6,7 +6,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>A tutorial on scalable system simulations for RISC-V architectures and performance analysis for machine learning workloads &mdash; VLSI Design Conference Tutorial 2025 0.1 documentation</title>
+  <title>A tutorial on scalable system simulations for RISC-V architectures and performance analysis for machine learning workloads &mdash; Scalable System Simulations Tutorial 0.1 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
       <link rel="stylesheet" type="text/css" href="_static/custom_svg.css" />
@@ -32,7 +32,7 @@
           
           
           <a href="#" class="icon icon-home">
-            VLSI Design Conference Tutorial 2025
+            Scalable System Simulations Tutorial
               <img src="_static/512px-LOGO-IMEC_black.svg.png" class="logo" alt="Logo"/>
           </a>
 <div role="search">
@@ -47,7 +47,8 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="gem5.html">Application-oriented system modeling and optimization</a></li>
 <li class="toctree-l1"><a class="reference internal" href="sst.html">Installation instructions for scale-out system simulation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="sst.html#scale-out-system-simulation-with-sst">Scale-out system simulation with SST</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sst.html#instruction-level-simulation">Instruction-level simulation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sst.html#packet-level-simulation">Packet-level simulation</a></li>
 <li class="toctree-l1"><a class="reference external" href="https://www.imec-int.com/en/expertise/compute-system-architecture">About us - CSA, imec</a></li>
 </ul>
 
@@ -57,7 +58,7 @@
 
     <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
           <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
-          <a href="#">VLSI Design Conference Tutorial 2025</a>
+          <a href="#">Scalable System Simulations Tutorial</a>
       </nav>
 
       <div class="wy-nav-content">
@@ -110,22 +111,24 @@ where the simulation framework used is chosen based on a trade-off between fidel
 </li>
 <li class="toctree-l1"><a class="reference internal" href="sst.html">Installation instructions for scale-out system simulation</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="sst.html#install-instructions-for-sst">Install instructions for SST</a></li>
-<li class="toctree-l2"><a class="reference internal" href="sst.html#install-instructions-for-rv64-mpi-compiler">Install instructions for rv64 mpi compiler</a></li>
+<li class="toctree-l2"><a class="reference internal" href="sst.html#install-instructions-for-rv64-mpi-compiler">Install instructions for rv64 mpi compiler</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sst.html#scale-out-system-simulation-with-sst">Scale-out system simulation with SST</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="sst.html#scale-out-system-simulation-with-sst">Scale-out system simulation with SST</a><ul>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="sst.html#instruction-level-simulation">Instruction-level simulation</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="sst.html#environment-setup">Environment Setup</a></li>
-<li class="toctree-l2"><a class="reference internal" href="sst.html#context">Context</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="sst.html#system-under-exploration">System under exploration</a></li>
-<li class="toctree-l3"><a class="reference internal" href="sst.html#workload-under-evaluation">Workload under evaluation</a></li>
-</ul>
-</li>
-<li class="toctree-l2"><a class="reference internal" href="sst.html#demo">DEMO</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="sst.html#scale-up-system">Scale-up system</a></li>
-<li class="toctree-l3"><a class="reference internal" href="sst.html#scale-out-system">Scale-out system</a></li>
-</ul>
-</li>
+<li class="toctree-l2"><a class="reference internal" href="sst.html#system-under-exploration">System under exploration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="sst.html#workload-under-evaluation">Workload under evaluation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="sst.html#demo">DEMO</a></li>
 <li class="toctree-l2"><a class="reference internal" href="sst.html#references">References</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="sst.html#packet-level-simulation">Packet-level simulation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="sst.html#id4">Environment Setup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="sst.html#parallelism-in-large-language-model-training">Parallelism in Large Language Model training</a></li>
+<li class="toctree-l2"><a class="reference internal" href="sst.html#id5">DEMO</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference external" href="https://www.imec-int.com/en/expertise/compute-system-architecture">About us - CSA, imec</a></li>

@@ -6,7 +6,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Installation instructions for scale-out system simulation &mdash; VLSI Design Conference Tutorial 2025 0.1 documentation</title>
+  <title>Installation instructions for scale-out system simulation &mdash; Scalable System Simulations Tutorial 0.1 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
       <link rel="stylesheet" type="text/css" href="_static/custom_svg.css" />
@@ -32,7 +32,7 @@
           
           
           <a href="index.html" class="icon icon-home">
-            VLSI Design Conference Tutorial 2025
+            Scalable System Simulations Tutorial
               <img src="_static/512px-LOGO-IMEC_black.svg.png" class="logo" alt="Logo"/>
           </a>
 <div role="search">
@@ -48,30 +48,24 @@
 <li class="toctree-l1"><a class="reference internal" href="gem5.html">Application-oriented system modeling and optimization</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Installation instructions for scale-out system simulation</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#install-instructions-for-sst">Install instructions for SST</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#install-instructions-for-rv64-mpi-compiler">Install instructions for rv64 mpi compiler</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#install-instructions-for-rv64-mpi-compiler">Install instructions for rv64 mpi compiler</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#scale-out-system-simulation-with-sst">Scale-out system simulation with SST</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="#scale-out-system-simulation-with-sst">Scale-out system simulation with SST</a><ul>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="#instruction-level-simulation">Instruction-level simulation</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#environment-setup">Environment Setup</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#context">Context</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#system-under-exploration">System under exploration</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#workload-under-evaluation">Workload under evaluation</a></li>
-</ul>
-</li>
-<li class="toctree-l2"><a class="reference internal" href="#demo">DEMO</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#scale-up-system">Scale-up system</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="#first-experiment-impact-of-tiling-dimension-on-performance">First experiment: Impact of tiling dimension on performance</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#second-experiment-scaling-evaluation">Second experiment: Scaling evaluation</a></li>
-</ul>
-</li>
-<li class="toctree-l3"><a class="reference internal" href="#scale-out-system">Scale-out system</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="#first-experiment-changing-the-inter-node-network-topology">First experiment: Changing the inter-node network topology</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#id2">Second experiment: Scaling evaluation</a></li>
-</ul>
-</li>
-</ul>
-</li>
+<li class="toctree-l2"><a class="reference internal" href="#system-under-exploration">System under exploration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#workload-under-evaluation">Workload under evaluation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#demo">DEMO</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#references">References</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="#packet-level-simulation">Packet-level simulation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#id4">Environment Setup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#parallelism-in-large-language-model-training">Parallelism in Large Language Model training</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id5">DEMO</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference external" href="https://www.imec-int.com/en/expertise/compute-system-architecture">About us - CSA, imec</a></li>
@@ -83,7 +77,7 @@
 
     <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
           <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
-          <a href="index.html">VLSI Design Conference Tutorial 2025</a>
+          <a href="index.html">Scalable System Simulations Tutorial</a>
       </nav>
 
       <div class="wy-nav-content">
@@ -126,7 +120,7 @@ make<span class="w"> </span>install
 </div>
 <p>Then, you can install <strong>SST-elements</strong> as follow:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>sst/sst-elements
-git<span class="w"> </span>apply<span class="w"> </span>../sst-elements.patch
+git<span class="w"> </span>apply<span class="w"> </span>../../demo/sst/docker/sst-elements.patch
 <span class="nb">export</span><span class="w"> </span><span class="nv">SST_ELEMENTS_HOME</span><span class="o">=</span><span class="k">$(</span><span class="nb">pwd</span><span class="k">)</span>/install
 ./autogen.sh
 mkdir<span class="w"> </span>build
@@ -193,27 +187,27 @@ mkdir<span class="w"> </span>build
 make<span class="w"> </span>-j8<span class="w"> </span>install
 </pre></div>
 </div>
-</section>
-</section>
 <section id="scale-out-system-simulation-with-sst">
-<h1>Scale-out system simulation with SST<a class="headerlink" href="#scale-out-system-simulation-with-sst" title="Link to this heading"></a></h1>
-<p><strong>How to perform a scale-out system simulation with cycle-approximate accuracy?</strong>
+<h3>Scale-out system simulation with SST<a class="headerlink" href="#scale-out-system-simulation-with-sst" title="Link to this heading"></a></h3>
+<p><strong>How to perform a scale-out system simulation with instruction-level simulation and packet-level simulation?</strong>
 The goal of the second part of this tutorial is to introduce the Structural Simulation
-Toolkit (SST) framework which allows to simulate a scale-out system with a
-cycle-approximate accuracy.</p>
+Toolkit (SST) framework which allows to simulate a scale-out.</p>
+</section>
+</section>
+</section>
+<section id="instruction-level-simulation">
+<h1>Instruction-level simulation<a class="headerlink" href="#instruction-level-simulation" title="Link to this heading"></a></h1>
 <section id="environment-setup">
 <h2>Environment Setup<a class="headerlink" href="#environment-setup" title="Link to this heading"></a></h2>
 <p>To run the SST experiments you need to install SST. Please refer to <a class="reference internal" href="#installation-instructions">Installation instructions</a>.</p>
 </section>
-<section id="context">
-<h2>Context<a class="headerlink" href="#context" title="Link to this heading"></a></h2>
 <section id="system-under-exploration">
-<h3>System under exploration<a class="headerlink" href="#system-under-exploration" title="Link to this heading"></a></h3>
-<figure class="align-center" id="id5">
+<h2>System under exploration<a class="headerlink" href="#system-under-exploration" title="Link to this heading"></a></h2>
+<figure class="align-center" id="id6">
 <span id="cpu-figure"></span><a class="reference internal image-reference" href="_images/cpu.svg"><img alt="_images/cpu.svg" src="_images/cpu.svg" style="width: 400px;" />
 </a>
 <figcaption>
-<p><span class="caption-number">Fig. 3 </span><span class="caption-text">Microarchitecture of a cpu core.</span><a class="headerlink" href="#id5" title="Link to this image"></a></p>
+<p><span class="caption-number">Fig. 3 </span><span class="caption-text">Microarchitecture of a cpu core.</span><a class="headerlink" href="#id6" title="Link to this image"></a></p>
 </figcaption>
 </figure>
 <p>The system under exploration is made up of multi-threaded RISC-V CPU cores. As illustrated
@@ -224,11 +218,11 @@ unit and one dispatch unit, one register file for floating point numbers and ano
 for integers, a load store unit (or load store queue), multiple ALU and multiple FPU. The
 core is attached to each cache through a TLB and a memory interface. TLBs are managed by
 the operating system.</p>
-<figure class="align-center" id="id6">
+<figure class="align-center" id="id7">
 <span id="node-figure"></span><a class="reference internal image-reference" href="_images/node.svg"><img alt="_images/node.svg" src="_images/node.svg" style="width: 600px;" />
 </a>
 <figcaption>
-<p><span class="caption-number">Fig. 4 </span><span class="caption-text">Microarchitecture of a compute node.</span><a class="headerlink" href="#id6" title="Link to this image"></a></p>
+<p><span class="caption-number">Fig. 4 </span><span class="caption-text">Microarchitecture of a compute node.</span><a class="headerlink" href="#id7" title="Link to this image"></a></p>
 </figcaption>
 </figure>
 <p>As shown in Figure <a class="reference internal" href="#node-figure"><span class="std std-numref">Fig. 4</span></a>, the RISC-V cores are integrated into a compute
@@ -238,11 +232,11 @@ directory are interconnected through a NoC. The directory is attached to a DRAM
 controller. In addition, a node integrates a component that emulates an operating systems.
 The latter manages the virtual memory and is attached to every CPU core to provide the
 minimal service required to run applications.</p>
-<figure class="align-center" id="id7">
+<figure class="align-center" id="id8">
 <span id="system-figure"></span><a class="reference internal image-reference" href="_images/system.svg"><img alt="Scale-out system microarchitecture" src="_images/system.svg" style="width: 800px;" />
 </a>
 <figcaption>
-<p><span class="caption-number">Fig. 5 </span><span class="caption-text">Microarchitecture of a multi-node system.</span><a class="headerlink" href="#id7" title="Link to this image"></a></p>
+<p><span class="caption-number">Fig. 5 </span><span class="caption-text">Microarchitecture of a multi-node system.</span><a class="headerlink" href="#id8" title="Link to this image"></a></p>
 </figcaption>
 </figure>
 <p>Multi-node can be interconnect with a network to build a scale-out system, as illustrated
@@ -256,8 +250,8 @@ tree, dragonfly, torus, mesh, torus, etc).</p>
 <p>Every components or sub-components are configurable, for instance you can configure the
 latency of the ALU or the capacity of each cache. You can find more information on the
 parameters and their impact on the simulated system using <strong>sst-info</strong> command.</p>
-<table class="docutils align-default" id="id8">
-<caption><span class="caption-number">Table 1 </span><span class="caption-text">How to find the available parameters</span><a class="headerlink" href="#id8" title="Link to this table"></a></caption>
+<table class="docutils align-default" id="id9">
+<caption><span class="caption-number">Table 1 </span><span class="caption-text">How to find the available parameters</span><a class="headerlink" href="#id9" title="Link to this table"></a></caption>
 <colgroup>
 <col style="width: 33.3%" />
 <col style="width: 66.7%" />
@@ -287,14 +281,14 @@ parameters and their impact on the simulated system using <strong>sst-info</stro
 </table>
 </section>
 <section id="workload-under-evaluation">
-<h3>Workload under evaluation<a class="headerlink" href="#workload-under-evaluation" title="Link to this heading"></a></h3>
+<h2>Workload under evaluation<a class="headerlink" href="#workload-under-evaluation" title="Link to this heading"></a></h2>
 <p>The workload under evaluation is inspired by a Multi-head attention, one of the
-calculation layers of transformers <span id="id1">[<a class="reference internal" href="#id4" title="Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan N. Gomez, Lukasz Kaiser, and Illia Polosukhin. Attention is all you need. CoRR, 2017. URL: http://arxiv.org/abs/1706.03762, arXiv:1706.03762.">VSP+17</a>]</span>.</p>
-<figure class="align-center" id="id9">
+calculation layers of transformers <span id="id1">[<a class="reference internal" href="#id3" title="Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan N. Gomez, Lukasz Kaiser, and Illia Polosukhin. Attention is all you need. CoRR, 2017. URL: http://arxiv.org/abs/1706.03762, arXiv:1706.03762.">VSP+17</a>]</span>.</p>
+<figure class="align-center" id="id10">
 <span id="omp-mha-figure"></span><a class="reference internal image-reference" href="_images/mha.svg"><img alt="Multi-head attention block" src="_images/mha.svg" style="width: 600px;" />
 </a>
 <figcaption>
-<p><span class="caption-number">Fig. 6 </span><span class="caption-text">Illustration of the workload run on a single-node system.</span><a class="headerlink" href="#id9" title="Link to this image"></a></p>
+<p><span class="caption-number">Fig. 6 </span><span class="caption-text">Illustration of the workload run on a single-node system.</span><a class="headerlink" href="#id10" title="Link to this image"></a></p>
 </figcaption>
 </figure>
 <p>As shown in Figure <a class="reference internal" href="#omp-mha-figure"><span class="std std-numref">Fig. 6</span></a>, the application multiplies an <em>Embeddings</em>
@@ -336,11 +330,11 @@ tiles.</p>
 <span class="linenos">24</span><span class="p">}</span>
 </pre></div>
 </div>
-<figure class="align-center" id="id10">
+<figure class="align-center" id="id11">
 <span id="omp-mpi-mha-figure"></span><a class="reference internal image-reference" href="_images/mha_mpi.svg"><img alt="Multi-head attention block" src="_images/mha_mpi.svg" style="width: 600px;" />
 </a>
 <figcaption>
-<p><span class="caption-number">Fig. 7 </span><span class="caption-text">Illustration of the workload run on a multi-node system.</span><a class="headerlink" href="#id10" title="Link to this image"></a></p>
+<p><span class="caption-number">Fig. 7 </span><span class="caption-text">Illustration of the workload run on a multi-node system.</span><a class="headerlink" href="#id11" title="Link to this image"></a></p>
 </figcaption>
 </figure>
 <p>As the <em>heads</em> can be processed independently until the addition, the workload can be
@@ -427,14 +421,12 @@ stored in each memory domain (<strong>scatter</strong>). Consequently, less comp
 After, the final addition, we need to gather the heads by executing a <strong>MPI ALL REDUCE</strong>,
 after that all the nodes have the <em>Output</em> result.</p>
 </section>
-</section>
 <section id="demo">
 <h2>DEMO<a class="headerlink" href="#demo" title="Link to this heading"></a></h2>
 <p>For the demo, we will explore two systems. The first is a single-node system, the second
 is a scale-out system.</p>
-<section id="scale-up-system">
-<h3>Scale-up system<a class="headerlink" href="#scale-up-system" title="Link to this heading"></a></h3>
-<p>The python script <a class="reference external" href="../../demo/sst/system/scale_up.py">scale_up</a> build the system for the scale up system. You can explore
+<p><strong>Scale-up system</strong></p>
+<p>The python script <a class="reference external" href="../../demo/sst/instruction-level-simulation/scale_up.py">scale_up</a> build the system for the scale up system. You can explore
 the script to understand how a system is built with SST.</p>
 <p>You can run a simulation by executing the following command in a terminal from
 <em>demo/sst/ssytem</em> folder:</p>
@@ -451,8 +443,7 @@ workload (Seq<sub>len</sub>, D<sub>model</sub> , heads), and the binary version 
 --exe<span class="w"> </span><span class="s2">&quot;../software/riscv64/mha_OMP_8&quot;</span>
 </pre></div>
 </div>
-<section id="first-experiment-impact-of-tiling-dimension-on-performance">
-<h4>First experiment: Impact of tiling dimension on performance<a class="headerlink" href="#first-experiment-impact-of-tiling-dimension-on-performance" title="Link to this heading"></a></h4>
+<p><em>First experiment: Impact of tiling dimension on performance</em></p>
 <p>For the first experiment, we will evaluate the impact of the GEMM tiles dimension on the
 <strong>simulated performance</strong>. 4 binaries are provided in <em>software</em> folder.
 You can run a simulation with each binary. To explain the performance difference, you can
@@ -463,9 +454,7 @@ use the generated statistics.</p>
 Storing the statistics in a csv file makes analysis easier. You can open the file in
 Excel to filter the stats by component or type.</p>
 </div>
-</section>
-<section id="second-experiment-scaling-evaluation">
-<h4>Second experiment: Scaling evaluation<a class="headerlink" href="#second-experiment-scaling-evaluation" title="Link to this heading"></a></h4>
+<p><em>Second experiment: Scaling evaluation</em></p>
 <p>For the second experiment, we will observe the scaling of the <strong>simulated system</strong>
 (<em>i.e.</em>, performance of the application) and of the simulation (<em>i.e.</em>, performance of
 SST).</p>
@@ -547,11 +536,8 @@ number of instructions executed by all the cores, then divided by the simulation
 </tr>
 </tbody>
 </table>
-</section>
-</section>
-<section id="scale-out-system">
-<h3>Scale-out system<a class="headerlink" href="#scale-out-system" title="Link to this heading"></a></h3>
-<p>The python script <a class="reference external" href="../../demo/sst/system/scale_out.py">scale_out</a> build the system for the scale out system. You can explore
+<p><strong>Scale-out system</strong></p>
+<p>The python script <a class="reference external" href="../../demo/sst/instruction-level-simulation/scale_out.py">scale_out</a> build the system for the scale out system. You can explore
 the script to understand how a system is built with SST.</p>
 <p>You can run a simulation by executing the following command in a terminal from
 <em>demo/sst/ssytem</em> folder:</p>
@@ -567,8 +553,7 @@ You can configure the number of node in the system from the command line by sett
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sst<span class="w"> </span>scale_out.py<span class="w"> </span>--<span class="w"> </span>--num_node_per_router<span class="o">=</span><span class="m">4</span>
 </pre></div>
 </div>
-<section id="first-experiment-changing-the-inter-node-network-topology">
-<h4>First experiment: Changing the inter-node network topology<a class="headerlink" href="#first-experiment-changing-the-inter-node-network-topology" title="Link to this heading"></a></h4>
+<p><em>First experiment: Changing the inter-node network topology</em></p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="linenos">35</span><span class="c1"># Network topology definition start</span>
 <span class="linenos">36</span><span class="n">num_node_per_router</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">num_node_per_router</span>
 <span class="linenos">37</span>
@@ -594,9 +579,7 @@ router per dimension. The number of instantiated nodes is equal to the total num
 routers times <em>num_node_per_router</em>.</p>
 <p>To use a <strong>fat tree</strong> topology, you need to comment the line 38 and uncomment the lines
 44 to 46. <em>fattree_shape</em> defines the shape of the network.</p>
-</section>
-<section id="id2">
-<h4>Second experiment: Scaling evaluation<a class="headerlink" href="#id2" title="Link to this heading"></a></h4>
+<p><em>Second experiment: Scaling evaluation</em></p>
 <p>For the last experiment, we will observe the scaling of the <strong>simulated system</strong>
 (<em>i.e.</em>, performance of the application) and of the simulation (<em>i.e.</em>, performance of
 SST).</p>
@@ -628,17 +611,144 @@ decreasing with the simulated time.</p>
 </tbody>
 </table>
 </section>
-</section>
-</section>
 <section id="references">
 <h2>References<a class="headerlink" href="#references" title="Link to this heading"></a></h2>
-<div class="docutils container" id="id3">
+<div class="docutils container" id="id2">
 <div role="list" class="citation-list">
-<div class="citation" id="id4" role="doc-biblioentry">
+<div class="citation" id="id3" role="doc-biblioentry">
 <span class="label"><span class="fn-bracket">[</span><a role="doc-backlink" href="#id1">VSP+17</a><span class="fn-bracket">]</span></span>
 <p>Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan N. Gomez, Lukasz Kaiser, and Illia Polosukhin. Attention is all you need. <em>CoRR</em>, 2017. URL: <a class="reference external" href="http://arxiv.org/abs/1706.03762">http://arxiv.org/abs/1706.03762</a>, <a class="reference external" href="https://arxiv.org/abs/1706.03762">arXiv:1706.03762</a>.</p>
 </div>
 </div>
+</div>
+</section>
+</section>
+<section id="packet-level-simulation">
+<h1>Packet-level simulation<a class="headerlink" href="#packet-level-simulation" title="Link to this heading"></a></h1>
+<section id="id4">
+<h2>Environment Setup<a class="headerlink" href="#id4" title="Link to this heading"></a></h2>
+<p>To run the packet-level simulation, you can use the docker setup provided.
+To build the environment:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>docker
+docker<span class="w"> </span>compose<span class="w"> </span>up<span class="w"> </span>-d
+</pre></div>
+</div>
+<p>To enter the container:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>-it<span class="w"> </span>docker-riscv-scalable-simulation-tutorial-sst<span class="w"> </span>/bin/bash
+</pre></div>
+</div>
+<p>The working directory inside the container is <code class="docutils literal notranslate"><span class="pre">/opt/riscv-scalable-simulation-tutorial-sst/packet-level-simulation</span></code>.
+We will assume that every command is executed from that folder.</p>
+</section>
+<section id="parallelism-in-large-language-model-training">
+<h2>Parallelism in Large Language Model training<a class="headerlink" href="#parallelism-in-large-language-model-training" title="Link to this heading"></a></h2>
+<figure class="align-center" id="id12">
+<span id="transformer-arch-figure"></span><a class="reference internal image-reference" href="_images/transformer_arch.svg"><img alt="_images/transformer_arch.svg" src="_images/transformer_arch.svg" style="width: 400px;" />
+</a>
+<figcaption>
+<p><span class="caption-number">Fig. 8 </span><span class="caption-text">Simplified architecture of a decoder-only transformer.</span><a class="headerlink" href="#id12" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<p>As shown in Figure <a class="reference internal" href="#transformer-arch-figure"><span class="std std-numref">Fig. 8</span></a>, a decoder-only transformer, like
+Llama 3, is made up of different layers:</p>
+<ul class="simple">
+<li><p>The input is a batch of token sequences which is converted into embeddings tensor by the
+embeddings layer</p></li>
+<li><p>The embeddings tensor crosses L hidden layers which include a Self-Attention block and a multilayer perceptron (MLP)</p></li>
+<li><p>Then the embeddings tensor is processed by a normalization function, and projected
+onto the vocabulary (linear).</p></li>
+<li><p>Afterwards, the loss is calculated with a softmax and a cross entropy function.</p></li>
+<li><p>Finally, the loss is backpropagated in order to update the weigths</p></li>
+</ul>
+<figure class="align-center" id="id13">
+<span id="tp-figure"></span><a class="reference internal image-reference" href="_images/tensor_parallelism.svg"><img alt="_images/tensor_parallelism.svg" src="_images/tensor_parallelism.svg" style="width: 400px;" />
+</a>
+<figcaption>
+<p><span class="caption-number">Fig. 9 </span><span class="caption-text">Illustration of tensor parallelism.</span><a class="headerlink" href="#id13" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<figure class="align-center" id="id14">
+<span id="pp-figure"></span><a class="reference internal image-reference" href="_images/pipeline_parallelism_2.svg"><img alt="_images/pipeline_parallelism_2.svg" src="_images/pipeline_parallelism_2.svg" style="width: 400px;" />
+</a>
+<figcaption>
+<p><span class="caption-number">Fig. 10 </span><span class="caption-text">Illustration of 1 forward, 1 backward pipeline parallelism.</span><a class="headerlink" href="#id14" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<figure class="align-center" id="id15">
+<span id="dp-figure"></span><a class="reference internal image-reference" href="_images/data_parallelism.svg"><img alt="_images/data_parallelism.svg" src="_images/data_parallelism.svg" style="width: 400px;" />
+</a>
+<figcaption>
+<p><span class="caption-number">Fig. 11 </span><span class="caption-text">Illustration of data parallelism.</span><a class="headerlink" href="#id15" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<figure class="align-center" id="id16">
+<span id="d-figure"></span><a class="reference internal image-reference" href="_images/3d_parallelism_1.svg"><img alt="_images/3d_parallelism_1.svg" src="_images/3d_parallelism_1.svg" style="width: 400px;" />
+</a>
+<figcaption>
+<p><span class="caption-number">Fig. 12 </span><span class="caption-text">Illustration of 3D parallelism.</span><a class="headerlink" href="#id16" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<p>3 types of parallelism are explored in this tutorial:</p>
+<ul class="simple">
+<li><p>Tensor Parallelism as illustrated in Figure <a class="reference internal" href="#tp-figure"><span class="std std-numref">Fig. 9</span></a>.</p></li>
+<li><p>Pipeline Parallelism as illustrated in Figure <a class="reference internal" href="#pp-figure"><span class="std std-numref">Fig. 10</span></a>.</p></li>
+<li><p>Data Parallelism as illustrated in Figure <a class="reference internal" href="#dp-figure"><span class="std std-numref">Fig. 11</span></a>.</p></li>
+</ul>
+<p>The 3 level of parallelism can be merged to enable 3D parallelism as shown in Figure <a class="reference internal" href="#d-figure"><span class="std std-numref">Fig. 12</span></a>.</p>
+<p>4 <em>Ember</em> generators are provided in <a class="reference external" href="../../external/sst/sst-elements.patch">sst-elements.patch</a> to generate the MPI traffic
+corresponding to the 3 types of parallelism and the 3D parallelism.</p>
+</section>
+<section id="id5">
+<h2>DEMO<a class="headerlink" href="#id5" title="Link to this heading"></a></h2>
+<p>To run the experiments you need to log into the docker and move in the following directory <code class="docutils literal notranslate"><span class="pre">/opt/riscv-scalable-simulation-tutorial-sst/packet-level-simulation</span></code>.</p>
+<p>The python script <a class="reference external" href="../../demo/sst/packet-level-simulation/training_llm.py">training_llm</a> builds the system to explore LLM training. Different
+options can be passed via the command line:</p>
+<ul>
+<li><p>–tp TP to define the level of tensor parallelism.</p></li>
+<li><p>–pp PP to define the level of pipeline parallelism.</p></li>
+<li><p>–dp PP to define the level of data parallelism.</p></li>
+<li><p>–batch_size BATCH_SIZE to define the number of sequences processed in parallel per DP
+(i.e., if DP = 4 and BATCH_SIZE = 16, the number of sequences processed in parallel is
+64).</p></li>
+<li><p>–sequence_len SEQUENCE_LEN to define the number of tokens per sequence</p></li>
+<li><p>–n_batch N_BATCH to define the number of batches to process (e.g., if N_BATCH = 16 and DP
+= 4, each rank will process 4 batches).</p></li>
+<li><p>–llm_config LLM_CONFIG to define the path to the LLM configuration file (configuration</p></li>
+<li><p>files are downloaded from hugging face). 2 files are provided <a class="reference external" href="../../demo/sst/packet-level-simulation/small_config.json">small_config</a></p></li>
+<li><p>corresponding to Llama-3.2 1B and <a class="reference external" href="../../demo/sst/packet-level-simulation/large_config.json">large_config</a> corresponding to Llama-3.1 405B.</p></li>
+<li><p>–peak_flop PEAK_FLOP to define the peak compute throughput of 1 GPU at the targeted</p></li>
+<li><p>precission. This parameter is used to estimate the compute duration.</p></li>
+<li><p>–draw_bw DRAW_BW to define the dra compute throughput of 1 GPU at the targeted</p></li>
+<li><p>precission. This parameter is used to estimate the compute duration.</p></li>
+<li><dl class="option-list">
+<dt><kbd><span class="option">--verbose <var>VERBOSE</var></span></kbd></dt>
+<dd><p>to enable printing from Ember generators. VERBOSE = 6 prints the</p>
+</dd>
+</dl>
+</li>
+<li><p>compute time for each rank. VERBOSE = 8 print the transitions of the state machine for</p></li>
+<li><p>each rank.</p></li>
+<li><p>–log [LOG] to enable tracer of motif execution times. LOG defines the name of the
+output file.</p></li>
+<li><p>–stats [STATS] to enable statistics collection. STATS defines the name of the output
+file (must be csv file).</p></li>
+<li><p>–topology TOPOLOGY to define the topology to explore.</p></li>
+</ul>
+<p><strong>Exploring Tensor Parallelism</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sst<span class="w"> </span>--print-timing-info<span class="w"> </span>training_llm.py<span class="w"> </span>--<span class="w"> </span>--tp<span class="w"> </span><span class="m">8</span><span class="w"> </span>--pp<span class="w"> </span><span class="m">1</span><span class="w"> </span>--dp<span class="w"> </span><span class="m">1</span><span class="w"> </span>--batch_size<span class="w"> </span><span class="m">16</span><span class="w"> </span>--sequence_len<span class="w"> </span><span class="m">1024</span><span class="w"> </span>--n_batch<span class="w"> </span><span class="m">4</span><span class="w"> </span>--llm_config<span class="w"> </span>small_config.json<span class="w"> </span>--log<span class="w"> </span>tp_logger<span class="w"> </span>--stats<span class="w"> </span>tp_stats.csv<span class="w"> </span>--topology<span class="w"> </span>single<span class="w"> </span>--verbose<span class="w"> </span><span class="m">10</span>
+</pre></div>
+</div>
+<p><strong>Exploring Pipeline Parallelism</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sst<span class="w"> </span>--print-timing-info<span class="w"> </span>training_llm.py<span class="w"> </span>--<span class="w"> </span>--tp<span class="w"> </span><span class="m">1</span><span class="w"> </span>--pp<span class="w"> </span><span class="m">5</span><span class="w"> </span>--dp<span class="w"> </span><span class="m">1</span><span class="w"> </span>--batch_size<span class="w"> </span><span class="m">16</span><span class="w"> </span>--sequence_len<span class="w"> </span><span class="m">1024</span><span class="w"> </span>--n_batch<span class="w"> </span><span class="m">16</span><span class="w"> </span>--llm_config<span class="w"> </span>small_config.json<span class="w"> </span>--log<span class="w"> </span>pp_logger<span class="w"> </span>--stats<span class="w"> </span>pp_stats.csv<span class="w"> </span>--topology<span class="w"> </span>single<span class="w"> </span>--verbose<span class="w"> </span><span class="m">10</span>
+</pre></div>
+</div>
+<p><strong>Exploring Data Parallelism</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sst<span class="w"> </span>--print-timing-info<span class="w"> </span>training_llm.py<span class="w"> </span>--<span class="w"> </span>--tp<span class="w"> </span><span class="m">1</span><span class="w"> </span>--pp<span class="w"> </span><span class="m">1</span><span class="w"> </span>--dp<span class="w"> </span><span class="m">4</span><span class="w"> </span>--batch_size<span class="w"> </span><span class="m">16</span><span class="w"> </span>--sequence_len<span class="w"> </span><span class="m">1024</span><span class="w"> </span>--n_batch<span class="w"> </span><span class="m">16</span><span class="w"> </span>--llm_config<span class="w"> </span>small_config.json<span class="w"> </span>--log<span class="w"> </span>tp_logger<span class="w"> </span>--stats<span class="w"> </span>tp_stats.csv<span class="w"> </span>--topology<span class="w"> </span>single<span class="w"> </span>--verbose<span class="w"> </span><span class="m">10</span>
+</pre></div>
+</div>
+<p><strong>Exploring 3D Parallelism</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sst<span class="w"> </span>--print-timing-info<span class="w"> </span>training_llm.py<span class="w"> </span>--<span class="w"> </span>--tp<span class="w"> </span><span class="m">4</span><span class="w"> </span>--pp<span class="w"> </span><span class="m">5</span><span class="w"> </span>--dp<span class="w"> </span><span class="m">4</span><span class="w"> </span>--batch_size<span class="w"> </span><span class="m">16</span><span class="w"> </span>--sequence_len<span class="w"> </span><span class="m">1024</span><span class="w"> </span>--n_batch<span class="w"> </span><span class="m">16</span><span class="w"> </span>--llm_config<span class="w"> </span>small_config.json<span class="w"> </span>--log<span class="w"> </span>tp_logger<span class="w"> </span>--stats<span class="w"> </span>tp_stats.csv<span class="w"> </span>--topology<span class="w"> </span>fattree<span class="w"> </span>--verbose<span class="w"> </span><span class="m">10</span>
+</pre></div>
 </div>
 </section>
 </section>
