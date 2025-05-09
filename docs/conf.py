@@ -11,7 +11,7 @@
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-project = 'VLSI Design Conference Tutorial 2025'
+project = 'Scalable System Simulations Tutorial'
 copyright = '2024-2025, imec vzw'
 author = 'imec vzw'
 release = '0.1'
