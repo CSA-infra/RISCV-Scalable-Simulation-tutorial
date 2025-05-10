@@ -140,7 +140,7 @@ generate the binary.
 
 ::
 
-   git clone https://github.com/gem5/gem5.git -b v24.1.0.1
+   git clone https://github.com/gem5/gem5.git -b v24.1
 
 - Compile the m5 utility
 
@@ -170,36 +170,36 @@ minimal image from the gem5 community and modify it.
    gzip -d riscv-disk.img.gz
    cp riscv-disk.img vlsid-disk.img
 
-- Mount image
+- Mount image (execute with sudo if outside the container)
 
 ::
 
    mkdir /tmp/rootfs
-   sudo mount vlsid-disk.img /tmp/rootfs
+   mount vlsid-disk.img /tmp/rootfs
 
-- Copy benchmark
-
-::
-
-   sudo cp mnist-8.vmfb /tmp/rootfs/root/
-
-- Copy IREE run module
+- Copy benchmark (execute with sudo if outside the container)
 
 ::
 
-   sudo cp iree/iree-build-riscv64/install/bin/iree-run-module /tmp/rootfs/bin/
+   cp mnist-8.vmfb /tmp/rootfs/root/
 
-- Copy m5 utility
-
-::
-
-   sudo cp gem5/util/m5/build/riscv/out/m5 /tmp/rootfs/sbin/
-
-- Unmount image
+- Copy IREE run module (execute with sudo if outside the container)
 
 ::
 
-   sudo umount /tmp/rootfs
+   cp iree/iree-build-riscv64/install/bin/iree-run-module /tmp/rootfs/bin/
+
+- Copy m5 utility (execute with sudo if outside the container)
+
+::
+
+   cp gem5/util/m5/build/riscv/out/m5 /tmp/rootfs/sbin/
+
+- Unmount image (execute with sudo if outside the container)
+
+::
+
+   umount /tmp/rootfs
 
 Machine Learning Workload Execution
 -----------------------------------
