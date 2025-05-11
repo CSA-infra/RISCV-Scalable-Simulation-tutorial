@@ -58,8 +58,8 @@ RUN apt -y update && apt -y upgrade && apt -y install \
 
 RUN python3 -m pip install --break-system-packages \
     tensorflow \
-    iree-base-runtime \
-    iree-base-compiler \
+    iree-base-runtime==3.4.0 \
+    iree-base-compiler==3.4.0 \
     matplotlib \
     onnx \
     pandas-stubs
