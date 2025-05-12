@@ -52,7 +52,7 @@ WORKDIR /scratch/sst-core/source
 RUN ./autogen.sh
 WORKDIR /scratch/sst-core/build
 RUN ../source/configure --prefix=$SST_CORE_HOME --enable-mpi=no
-RUN make -j install
+RUN make -j$(nproc) install
 ENV PATH=$SST_CORE_HOME/bin:$PATH
 
 WORKDIR /scratch/sst-elements/source
@@ -60,7 +60,7 @@ RUN git apply /scratch/sst-elements/sst-elements.patch
 RUN ./autogen.sh
 WORKDIR /scratch/sst-elements/build
 RUN ../source/configure --prefix=$SST_ELEMENTS_HOME --with-sst-core=$SST_CORE_HOME --enable-mpi=no
-RUN make -j install
+RUN make -j$(nproc) install
 
 
 ## pre-commit, as installed via apt in 24.04, attempts to create a cache
